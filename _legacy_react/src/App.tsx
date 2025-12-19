@@ -126,7 +126,7 @@ export default function App() {
                     />
                 }
                 canvas={
-                    <div className="h-[52dvh] sm:h-[56vh] lg:h-[68vh] min-h-0">
+                    <div className="h-[70dvh] sm:h-[60vh] lg:h-[68vh] min-h-0">
                         {viewMode === "diagram" ? (
                             <Viewport
                                 type="3d"

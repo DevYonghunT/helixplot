@@ -13,11 +13,14 @@ export function AppShell({
 }) {
     return (
         <div className="min-h-dvh bg-[var(--bg)] text-[var(--text)]">
-            <div className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur">
+            <div
+                className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur"
+                style={{ paddingTop: "max(env(safe-area-inset-top), 12px)" }}
+            >
                 {topbar}
             </div>
 
-            <div className="relative mx-auto max-w-[1200px] px-3 py-3">
+            <div className="relative mx-auto max-w-[1200px] px-3 py-2">
                 {/* Canvas area */}
                 <div className="relative rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow)] overflow-hidden">
                     {canvas}

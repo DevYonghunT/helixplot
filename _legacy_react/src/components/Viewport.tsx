@@ -67,6 +67,11 @@ const SceneContent = ({
     const [fitReady, setFitReady] = useState(false);
     const is3D = type === '3d';
 
+    // Keep orbit controls responsive even while playback is running
+    useFrame(() => {
+        if (controlsRef.current) controlsRef.current.update();
+    });
+
     // Refs for Dynamic Updates (Animation)
     const cursorMeshRef = useRef<THREE.Mesh>(null);
     const projXYRef = useRef<THREE.Mesh>(null);
@@ -274,7 +279,18 @@ const SceneContent = ({
                 <OrthographicCamera makeDefault position={[0, 0, 10]} />
             )}
 
-            {is3D && <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.1} />}
+            {is3D && (
+                <OrbitControls
+                    ref={controlsRef}
+                    makeDefault
+                    enableDamping
+                    dampingFactor={0.1}
+                    enableZoom
+                    enableRotate
+                    enablePan
+                    touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
+                />
+            )}
 
             <ambientLight intensity={0.7} />
             <pointLight position={[10, 10, 10]} intensity={0.8} />
@@ -386,7 +402,7 @@ export const Viewport: React.FC<ViewportProps> = (props) => {
                 {is3D ? (props.showDiagramElements ? 'Diagram View' : '3D View') : `${props.type.toUpperCase()} proj`}
             </div>
 
-            <Canvas>
+            <Canvas style={{ touchAction: 'none' }}>
                 <SceneContent {...props} themes={themes} />
             </Canvas>
         </div>

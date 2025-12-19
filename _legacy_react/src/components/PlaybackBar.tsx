@@ -20,13 +20,42 @@ export function PlaybackBar({
     tRange: [number, number];
 }) {
     const progressBarRef = useRef<HTMLDivElement>(null);
-    const { ui, playingRef, speedRef, setPlaying, setSpeed, seek01 } = playbackRt;
+    const { playingRef, speedRef, setPlaying, setSpeed, seek01, tRef } = playbackRt;
 
+    // Local UI State
+    const [displayState, setDisplayState] = useState({ t: tRange[0], progress01: 0 });
     // Force re-render for Play icon toggle
     const [_, forceUpdate] = useState(0);
 
+    // Sync loop: Reads tRef and updates UI throttled
+    React.useEffect(() => {
+        let rafId = 0;
+        let lastUpdate = 0;
+
+        const update = (now: number) => {
+            if (now - lastUpdate > 100) { // 100ms throttle
+                lastUpdate = now;
+                const t = tRef.current;
+                const min = tRange[0];
+                const max = tRange[1];
+                const range = max - min || 1;
+                const p = Math.max(0, Math.min(1, (t - min) / range));
+
+                // Only setState if changed significantly? 
+                // Or just blindly set. React won't re-render if value same? 
+                // Object identity changes, so it will.
+                // Let's rely on setState batching.
+                setDisplayState({ t, progress01: p });
+            }
+            rafId = requestAnimationFrame(update);
+        };
+        rafId = requestAnimationFrame(update);
+        return () => cancelAnimationFrame(rafId);
+    }, [tRange, tRef]);
+
     const handleToggle = () => {
-        setPlaying(!playingRef.current);
+        const next = !playingRef.current;
+        setPlaying(next);
         forceUpdate(c => c + 1);
     };
 
@@ -41,12 +70,16 @@ export function PlaybackBar({
         const x = e.clientX - rect.left;
         const p = Math.max(0, Math.min(1, x / rect.width));
         seek01(p, tRange[0], tRange[1]);
+
+        // Immediate visual update
+        const t = tRange[0] + (tRange[1] - tRange[0]) * p;
+        setDisplayState({ t, progress01: p });
     };
 
-    const tLabel = `t: ${ui.t.toFixed(2)}`;
+    const tLabel = `t: ${displayState.t.toFixed(2)}`;
 
     return (
-        <div className="mx-auto max-w-[600px] h-16 rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow)] backdrop-blur px-4 flex items-center gap-4">
+        <div className="mx-auto max-w-[600px] h-16 rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow)] backdrop-blur px-4 flex items-center gap-4 select-none touch-none">
             {/* Play/Pause */}
             <PlaybackButton onClick={handleToggle}>
                 {playingRef.current ? (
@@ -82,7 +115,7 @@ export function PlaybackBar({
                 >
                     <div
                         className="absolute top-0 left-0 h-full bg-[var(--accent)] transition-all duration-100 ease-linear rounded-full"
-                        style={{ width: `${ui.progress01 * 100}%` }}
+                        style={{ width: `${displayState.progress01 * 100}%` }}
                     />
                 </div>
             </div>
