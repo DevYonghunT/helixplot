@@ -45,13 +45,34 @@ public class GraphManager : MonoBehaviour
             // 2. Detect Mode
             _currentMode = ModeDetector.Detect(_defs);
 
-            // 3. Extract Ranges (naive)
-            // Ideally Sampler extracts constants first.
-            // For MVP we can just manually check definitions or assume tmin/tmax vars exist
-            // Or just hardcode defaults if not found.
+            // 3. Extract Constants & Ranges
+            var constantCtx = new Dictionary<string, Value>();
+            var evaluator = new Evaluator(constantCtx);
+            
+            // Simple constant evaluation: evaluate all 0-param definitions
+            // We iterate to resolve dependencies simply? Or just once.
+            // If "a=1; b=a+1", order matters.
+            // Let's do a best-effort ordered pass or multi-pass?
+            // For MVP: Single pass. If order is wrong, it fails. User should write in order.
+            foreach (var d in _defs)
+            {
+                if (d.Params.Count == 0)
+                {
+                    try 
+                    {
+                        var val = evaluator.Evaluate(d.Body);
+                        constantCtx[d.Target] = val;
+                    } 
+                    catch { /* implicitly depends on something not yet defined */ }
+                }
+            }
+            
+            // Check for TMin/TMax overrides in code
+            if (constantCtx.ContainsKey("tmin")) TMin = (float)constantCtx["tmin"].Real;
+            if (constantCtx.ContainsKey("tmax")) TMax = (float)constantCtx["tmax"].Real;
 
             // 4. Sample
-            _data = Sampler.SampleCurve(_defs, _currentMode, ComplexMapping.A, TMin, TMax, Samples);
+            _data = Sampler.SampleCurve(_defs, _currentMode, ComplexMapping.A, TMin, TMax, Samples, constantCtx);
 
             // 5. Render
             UpdateVisuals();

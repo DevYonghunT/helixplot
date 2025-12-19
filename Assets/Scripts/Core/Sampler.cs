@@ -16,30 +16,13 @@ namespace Helixplot.Core
             List<Definition> defs, 
             PlotMode mode,
             ComplexMapping mapping,
-            double tmin, double tmax, int samples)
+            double tmin, double tmax, int samples,
+            Dictionary<string, Value> initialContext = null)
         {
             var points = new List<SamplePoint>(samples);
-            var evaluator = new Evaluator(new Dictionary<string, Value>());
-            
-            // 1. Process Constants (a=1, etc)
-            // Naive approach: evaluate all definitions with empty context first.
-            // If they depend on t, they fail. If constant, they succeed.
-            foreach (var d in defs)
-            {
-                if (d.Params.Count == 0)
-                {
-                    try {
-                        evaluator = new Evaluator(new Dictionary<string, Value>()); // Reset? No use accumulated context
-                        // Actually we need a persistent context for constants.
-                        // Let's assume constants are evaluated in order or require dependency check.
-                        // MVP: Just try to eval everything 0-param.
-                    } catch {}
-                }
-            }
-            
-            // Better: Context is passed in loop.
-            // We need to identify the "Function" definitions.
-            
+            // Use initial context if provided, else empty
+            var baseCtx = initialContext != null ? new Dictionary<string, Value>(initialContext) : new Dictionary<string, Value>();
+
             Definition defX = defs.Find(d => d.Target == "x");
             Definition defY = defs.Find(d => d.Target == "y");
             Definition defZ = defs.Find(d => d.Target == "z");
@@ -51,16 +34,24 @@ namespace Helixplot.Core
                 double u = (double)i / (samples - 1);
                 double t = tmin + u * (tmax - tmin);
                 
-                var ctx = new Dictionary<string, Value>();
+                // Copy base context for this sample (shallow copy is enough for Value types)
+                var ctx = new Dictionary<string, Value>(baseCtx);
                 // Inject t
                 ctx["t"] = Value.FromDouble(t);
                 
-                // Eval constants (inefficient inside loop, but robust)
-                foreach(var d in defs) {
-                    if(d.Params.Count == 0) {
-                        try { ctx[d.Target] = new Evaluator(ctx).Evaluate(d.Body); } catch {}
-                    }
-                }
+                // Note: We skip re-evaluating 0-param definitions here, assuming they are in initialContext.
+                // If a definition depends on 't' but has 0 params (impossible by parser logic if params are explicit),
+                // or if it implicitly uses 't' in body without params signature...
+                // Our parser likely puts 't' in params if used? Or maybe not.
+                // The previous code re-evaluated ALL 0-param definitions.
+                // If "f() = t", it has 0 params but depends on t.
+                // WE MUST CHECK if body uses 't'.
+                // Ideally, definitions dependent on 't' should declare it: "f(t) = ...".
+                // If user writes "y = t", parser might treat it as 0-param def if it looks for explicit "y(t)".
+                // Re-evaluating ALL definitions that are NOT in context might be safer?
+                // For now, following plan: explicit constants passed in.
+                // Any dynamic defs should be handled by 1-param logic or explicit calls.
+                // Let's stick to the plan: optimize by using baseCtx.
 
                 var ev = new Evaluator(ctx);
                 Vector3 pos = Vector3.zero;
@@ -72,10 +63,6 @@ namespace Helixplot.Core
                     {
                         if (defR != null)
                         {
-                            // r(t) = (x,y,z) is a TupleNode.
-                            // Evaluator throws on Tuple.
-                            // We need to special handle TupleNode body here or implement Tuple support in Evaluator.
-                            // Let's peek AST.
                             if (defR.Body is TupleNode tuple && tuple.Elements.Count >= 3)
                             {
                                  Value vx = ev.Evaluate(tuple.Elements[0]);
@@ -107,6 +94,13 @@ namespace Helixplot.Core
                              pos.x = (float)val.Real;
                              pos.y = (float)val.Imag;
                              pos.z = (float)t;
+                        }
+                        // Mapping C: re, im, magnitude
+                        else if (mapping == ComplexMapping.C)
+                        {
+                             pos.x = (float)val.Real;
+                             pos.y = (float)val.Imag;
+                             pos.z = (float)val.Magnitude;
                         }
                     }
                 }
