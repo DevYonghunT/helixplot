@@ -5,6 +5,7 @@ export interface Preset {
     category: PresetCategory;
     name: string;
     code: string;
+    latex?: string;
 }
 
 export const DEFAULT_PRESET_ID = "math_lissajous_complex";
@@ -18,7 +19,8 @@ export const CORE_PRESETS: Preset[] = [
         code: `# Lissajous / Complex Demo
 f(t) = exp(-0.1*t) * (cos(5*t) + i*sin(5*t))
 tmin = 0
-tmax = 10`
+tmax = 10`,
+        latex: "e^{-0.1t}( \\cos(5t) + i\\sin(5t) )"
     },
     {
         id: "math_circle_unit",

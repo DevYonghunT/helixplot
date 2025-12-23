@@ -1,105 +1,176 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import 'mathlive';
+import clsx from 'clsx';
+// Reuse existing toolbar but adapt it? 
+// Current MathToolbar inserts 'sin()'. For MathInput we might want '\sin'.
+// But let's see. If we insert 'sin()' into MathField, it might parse it.
+// MathLive is smart.
 
-// Note: math-field is a custom element. We ignore TS check for it.
-
-// Redefine MathInput to be smarter
-function SmartMathInput({ label, initialExpr, onExprChange }: { label: string, initialExpr: string, onExprChange: (expr: string) => void }) {
+export function EquationEditor({
+    latex,
+    onLatexChange,
+    compiledExpr,
+    error
+}: {
+    latex: string,
+    onLatexChange: (l: string) => void,
+    compiledExpr: string,
+    error: string | null
+}) {
     const mf = useRef<any>(null);
 
+    // Sync external latex to field (only if different to avoid cursor jump issues, tricky)
     useEffect(() => {
-        if (mf.current) {
-            // Set initial value. 
-            mf.current.value = initialExpr;
+        if (mf.current && mf.current.value !== latex) {
+            const el = mf.current;
+            if (document.activeElement !== el) {
+                el.value = latex;
+            }
         }
-    }, []);
+    }, [latex]);
 
     useEffect(() => {
         const el = mf.current;
         if (!el) return;
 
-        // Listen to changes
         const onInput = () => {
-            // Get ASCII Math
-            const ascii = el.getValue('ascii-math');
-            onExprChange(ascii);
+            const val = el.value;
+            onLatexChange(val);
         };
         el.addEventListener('input', onInput);
         return () => el.removeEventListener('input', onInput);
-    }, [onExprChange]);
+    }, [onLatexChange]);
 
-    return (
-        <div className="flex flex-col gap-1">
-            <div className="flex justify-between items-end">
-                <label className="text-xs font-bold text-[var(--muted)] uppercase font-mono">{label}</label>
-            </div>
-            <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-white text-black shadow-sm">
-                {/* @ts-ignore */}
-                <math-field
-                    ref={mf}
-                    style={{
-                        width: '100%',
-                        padding: '12px',
-                        fontSize: '18px',
-                        border: 'none',
-                        outline: 'none',
-                        backgroundColor: 'white' // MathLive needs light bg usually
-                    }}
-                >
-                    {initialExpr}
-                    {/* @ts-ignore */}
-                </math-field>
-            </div>
-        </div>
-    );
-}
+    // Manual Keyboard Logic
+    const [vkOpen, setVkOpen] = useState(false);
 
-export function EquationEditorPanel({ code, onCodeChange }: { code: string, onCodeChange: (c: string) => void }) {
-    // Parse initial
-    const lines = code.split('\n');
-    const findDef = (target: string) => {
-        const line = lines.find(l => l.trim().startsWith(target));
-        if (line) {
-            const parts = line.split('=');
-            if (parts.length > 1) return parts[1].trim();
+    useEffect(() => {
+        // @ts-ignore
+        const vk = window.mathVirtualKeyboard;
+        if (!vk) return;
+
+        // @ts-ignore
+        vk.policy = "manual";
+
+        // Helper to dock
+        const dock = document.getElementById("math-keyboard-dock");
+        if (dock) {
+            vk.container = dock;
         }
-        return 't'; // default
-    };
 
-    const xInit = findDef('x(t)');
-    const yInit = findDef('y(t)');
-    const zInit = findDef('z(t)');
-
-    const handleExprChange = (axis: 'x' | 'y' | 'z', val: string) => {
-        let c = code;
-        const setLine = (t: string, v: string) => {
-            const reg = new RegExp(`(${t.replace('(', '\\(').replace(')', '\\)')}\\s*=\\s*)(.*)`);
-            if (reg.test(c)) {
-                c = c.replace(reg, `$1${v}`);
-            } else {
-                c += `\n${t} = ${v}`;
-            }
+        return () => {
+            // Cleanup? If we unmount, maybe hide keyboard?
+            vk.hide();
         };
+    }, []);
 
-        setLine(axis === 'x' ? 'x(t)' : axis === 'y' ? 'y(t)' : 'z(t)', val);
-
-        onCodeChange(c);
+    // Keyboard Toggle Logic
+    const toggleVK = () => {
+        setVkOpen(prev => !prev);
     };
+
+    // Effect to handle show/hide based on state
+    useEffect(() => {
+        // @ts-ignore
+        const vk = window.mathVirtualKeyboard;
+        if (!vk) return;
+
+        if (vkOpen) {
+            // Ensure docked
+            const dock = document.getElementById("math-keyboard-dock");
+            if (dock && vk.container !== dock) {
+                vk.container = dock;
+            }
+
+            // Focus field then show keyboard
+            if (mf.current) {
+                mf.current.focus();
+            }
+            vk.show();
+
+            // Scroll into view logic
+            setTimeout(() => {
+                mf.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+
+        } else {
+            vk.hide();
+        }
+    }, [vkOpen]);
+
+    // Listen for VK state changes potentially? MathLive doesn't easily expose "is open" listener via global usually,
+    // but we can trust our state or verify.
+    // Actually, letting math-field handle focus might trigger it too if we aren't careful?
+    // User said "read-only + inputmode=none". 
 
     return (
-        <div className="flex flex-col gap-6 p-4 h-full overflow-y-auto">
-            <SmartMathInput label="x(t)" initialExpr={xInit} onExprChange={v => handleExprChange('x', v)} />
-            <SmartMathInput label="y(t)" initialExpr={yInit} onExprChange={v => handleExprChange('y', v)} />
-            <SmartMathInput label="z(t)" initialExpr={zInit} onExprChange={v => handleExprChange('z', v)} />
+        <div className="flex flex-col h-full bg-[var(--bg)]">
+            <div className="p-4 flex-1 overflow-y-auto">
+                <div className="flex items-start gap-2">
+                    {/* Math Field */}
+                    <div className="flex-1 border border-[var(--accent)] rounded-xl overflow-hidden bg-white text-black shadow-sm mb-4 min-h-[56px] flex items-center">
+                        {/* @ts-ignore */}
+                        <math-field
+                            ref={mf}
+                            style={{
+                                width: '100%',
+                                padding: '8px 16px',
+                                fontSize: '24px',
+                                border: 'none',
+                                outline: 'none',
+                            }}
+                            // Manual Keyboard Config
+                            virtual-keyboard-mode="manual"
+                            read-only
+                            inputmode="none"
+                            onPointerDown={() => {
+                                // Prevent default focus/keyboard behavior
+                                // e.preventDefault(); 
+                                // Actually preventDefault might stop focus?
+                                // We want focus but NO native keyboard.
+                                // read-only/inputmode=none does that mostly.
+                                // We just ensure VK opens.
+                                if (!vkOpen) toggleVK();
+                            }}
+                        >
+                            {latex}
+                            {/* @ts-ignore */}
+                        </math-field>
+                    </div>
 
-            <div className="p-3 bg-[var(--card)] rounded-xl border border-[var(--border)] text-xs text-[var(--muted)]">
-                <p className="mb-1">💡 Tips:</p>
-                <ul className="list-disc list-inside space-y-0.5">
-                    <li>Type <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">/</code> for fractions</li>
-                    <li>Type <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">^</code> for powers</li>
-                    <li>Functions: sin, cos, tan, log, exp</li>
-                    <li>Constants: pi</li>
-                </ul>
+                    {/* Keyboard Toggle Button */}
+                    <button
+                        onClick={toggleVK}
+                        className={clsx(
+                            "h-[56px] w-[56px] shrink-0 rounded-xl border border-[var(--border)] bg-[var(--card)] flex items-center justify-center text-xl shadow-sm transition-all active:scale-95",
+                            vkOpen ? "text-[var(--accent)] border-[var(--accent)]" : "text-[var(--text-muted)]"
+                        )}
+                    >
+                        ⌨️
+                    </button>
+                </div>
+
+                {/* Preview / Error */}
+                <div className="mt-2">
+                    <div className="text-[10px] font-bold text-[var(--muted)] uppercase mb-1 flex justify-between">
+                        <span>Compiled DSL</span>
+                        {compiledExpr && (
+                            <button
+                                onClick={() => navigator.clipboard.writeText(compiledExpr)}
+                                className="text-[var(--accent)] hover:underline"
+                            >
+                                Copy
+                            </button>
+                        )}
+                    </div>
+
+                    <div className={clsx(
+                        "p-3 rounded-lg font-mono text-xs break-all",
+                        error ? "bg-red-50 text-red-600 border border-red-200" : "bg-[var(--card)] border border-[var(--border)] text-[var(--text-muted)]"
+                    )}>
+                        {error ? `Error: ${error}` : (compiledExpr || "(Empty)")}
+                    </div>
+                </div>
             </div>
         </div>
     );

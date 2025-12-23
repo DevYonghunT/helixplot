@@ -4,6 +4,7 @@ import { ModeDetector } from '../core/ModeDetector';
 import { Sampler } from '../core/Sampler';
 import { Evaluator } from '../core/Evaluator';
 import type { RenderConfig, SampleResult, DefinitionsMap } from '../core/types';
+import { latexToExpr } from '../utils/latexToExpr';
 
 const INITIAL_CODE = `# Lissajous / Complex Demo
 f(t) = exp(-0.1*t) * (cos(5*t) + i*sin(5*t))
@@ -13,6 +14,10 @@ tmax = 10
 
 export function useHelixState() {
     const [input, setInput] = useState(INITIAL_CODE);
+    const [latexInput, setLatexInput] = useState("");
+    const [lastGoodExpr, setLastGoodExpr] = useState("");
+    const [exprError, setExprError] = useState<string | null>(null);
+
     const [parsed, setParsed] = useState<{ defs: DefinitionsMap, errors: string[] }>({ defs: {}, errors: [] });
     const [data, setData] = useState<SampleResult>({ points: [], validity: [] });
     const [config, setConfig] = useState<RenderConfig>({ mode: 'auto', tRange: [0, 10], tSamples: 800 });
@@ -20,6 +25,40 @@ export function useHelixState() {
 
     // Playback State (Removed - moved to usePlaybackRuntime)
     const [userPeriodT, setUserPeriodT] = useState<string>("");
+
+    // Helper: Update Code from LaTeX (One-way sync for now)
+    const updateFromLatex = (latex: string) => {
+        setLatexInput(latex);
+        const { expr, error } = latexToExpr(latex);
+
+        if (error) {
+            setExprError(error);
+            // Don't update input code if error?
+            return;
+        }
+
+        // Try to inject expr into f(t) = ...
+        // We need to parse current input to find f(t) line
+        const lines = input.split('\n');
+        const fIdx = lines.findIndex(l => l.trim().startsWith('f(t) =') || l.trim().startsWith('f(t)='));
+
+        if (fIdx !== -1) {
+            // Check if expr is valid syntax? 
+            // We rely on ExpressionParser downstream, but for "LastGood", we assume converter success = candidate.
+
+            // Update DSL Code
+            const newLines = [...lines];
+            newLines[fIdx] = `f(t) = ${expr}`;
+            const newInput = newLines.join('\n');
+
+            setInput(newInput);
+            setLastGoodExpr(expr);
+            setExprError(null);
+        } else {
+            // No f(t) found? Maybe append or ignore for MVP
+            // If user is in scratchpad mode, latex might not map well.
+        }
+    };
 
     // 1. Parse Input Effect
     useEffect(() => {
@@ -77,6 +116,9 @@ export function useHelixState() {
 
     return {
         input, setInput,
+        latexInput, updateFromLatex, setLatexInputRaw: setLatexInput,
+        lastGoodExpr,
+        exprError,
         errors: parsed.errors,
         data,
         config,

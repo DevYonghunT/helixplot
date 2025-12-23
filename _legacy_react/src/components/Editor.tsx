@@ -1,41 +1,50 @@
 import { forwardRef, useState } from 'react';
 import clsx from 'clsx';
-import { EquationEditorPanel } from './EquationEditor';
+import { EquationEditor } from './EquationEditor';
 
 interface EditorProps {
     value: string;
     onChange: (value: string) => void;
     errors: string[];
+    // New
+    latex: string;
+    onLatexChange: (l: string) => void;
+    compiledExpr: string;
+    exprError: string | null;
 }
 
-export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({ value, onChange, errors }, ref) => {
-    const [mode, setMode] = useState<'code' | 'eq'>('code');
+export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
+    value, onChange, errors,
+    latex, onLatexChange, compiledExpr, exprError
+}, ref) => {
+    const [mode, setMode] = useState<'code' | 'eq'>('eq'); // Default to Eq mode as requested for "Codecogs UX"
 
     return (
         <div className="flex flex-col h-full gap-2 transition-all">
             {/* Mode Switch */}
-            <div className="flex bg-[var(--bg)] p-1 rounded-xl border border-[var(--border)] self-start">
-                <button
-                    onClick={() => setMode('code')}
-                    className={clsx(
-                        "px-4 py-1 text-xs font-bold rounded-lg transition-colors",
-                        mode === 'code'
-                            ? "bg-[var(--accent)] text-white shadow-sm"
-                            : "text-[var(--text-muted)] hover:bg-gray-100 dark:hover:bg-white/5"
-                    )}
-                >
-                    Code
-                </button>
+            {/* Mode Switch (Segmented Control) */}
+            <div className="flex bg-[var(--bg-panel)] p-1 rounded-full border border-[var(--border)] self-start h-10 w-full sm:w-auto relative">
                 <button
                     onClick={() => setMode('eq')}
                     className={clsx(
-                        "px-4 py-1 text-xs font-bold rounded-lg transition-colors",
+                        "flex-1 sm:flex-none px-6 h-full rounded-full text-sm font-semibold transition-all duration-200 z-10",
                         mode === 'eq'
-                            ? "bg-[var(--accent)] text-white shadow-sm"
-                            : "text-[var(--text-muted)] hover:bg-gray-100 dark:hover:bg-white/5"
+                            ? "bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.12)] scale-[1.02]"
+                            : "text-[var(--text-muted)] hover:text-[var(--text)]"
                     )}
                 >
-                    Eq. Mode
+                    Equation
+                </button>
+                <button
+                    onClick={() => setMode('code')}
+                    className={clsx(
+                        "flex-1 sm:flex-none px-6 h-full rounded-full text-sm font-semibold transition-all duration-200 z-10",
+                        mode === 'code'
+                            ? "bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.12)] scale-[1.02]"
+                            : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                    )}
+                >
+                    Raw Code
                 </button>
             </div>
 
@@ -46,11 +55,16 @@ export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({ value, onC
                     spellCheck={false}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    placeholder="# Define your function here\nx(t) = cos(10*t)\ny(t) = sin(10*t)\nz(t) = t"
+                    placeholder="# Define your function here\nx(t) = cos(10*t)\n..."
                 />
             ) : (
                 <div className="flex-1 w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl overflow-hidden min-h-0">
-                    <EquationEditorPanel code={value} onCodeChange={onChange} />
+                    <EquationEditor
+                        latex={latex}
+                        onLatexChange={onLatexChange}
+                        compiledExpr={compiledExpr}
+                        error={exprError}
+                    />
                 </div>
             )}
 

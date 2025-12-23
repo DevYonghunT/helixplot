@@ -6,13 +6,13 @@ import * as THREE from 'three';
 import type { SampleResult, Mode, RenderConfig } from '../core/types';
 import type { PlaneTheme } from '../hooks/usePlaneTheme';
 import { CurveRenderer, SurfaceRenderer } from './Renderers';
-import { computeBounds } from '../fit/computeBounds';
+
 import type { PlaybackRuntime } from '../hooks/usePlaybackRuntime';
 
 interface ViewportProps {
     data: SampleResult;
     mode: Mode;
-    type: '3d' | 'xy' | 'xz' | 'yz';
+    type: '3d' | 'x' | 'y' | 'z';
     className?: string;
     showDiagramElements?: boolean;
     valBound?: number; // Legacy bound, ignored for planes now
@@ -24,9 +24,9 @@ interface ViewportProps {
 }
 
 const DEFAULT_THEME_FALLBACK = {
-    xy: { hex: "#3B82F6", alpha: 0.1 },
-    xz: { hex: "#22C55E", alpha: 0.1 },
-    yz: { hex: "#EF4444", alpha: 0.1 },
+    z: { hex: "#3B82F6", alpha: 0.1 }, // XY -> Z Plane
+    y: { hex: "#22C55E", alpha: 0.1 }, // XZ -> Y Plane
+    x: { hex: "#EF4444", alpha: 0.1 }, // YZ -> X Plane
 };
 
 // Refactored ProjectionPlane with fixed Render Order & Material
@@ -74,15 +74,15 @@ const SceneContent = ({
 
     // Refs for Dynamic Updates (Animation)
     const cursorMeshRef = useRef<THREE.Mesh>(null);
-    const projXYRef = useRef<THREE.Mesh>(null);
-    const projXZRef = useRef<THREE.Mesh>(null);
-    const projYZRef = useRef<THREE.Mesh>(null);
-    const lineXYRef = useRef<THREE.LineSegments>(null);
-    const lineXZRef = useRef<THREE.LineSegments>(null);
-    const lineYZRef = useRef<THREE.LineSegments>(null);
+    const projZRef = useRef<THREE.Mesh>(null); // XY -> Z
+    const projYRef = useRef<THREE.Mesh>(null); // XZ -> Y
+    const projXRef = useRef<THREE.Mesh>(null); // YZ -> X
+    const lineZRef = useRef<THREE.LineSegments>(null);
+    const lineYRef = useRef<THREE.LineSegments>(null);
+    const lineXRef = useRef<THREE.LineSegments>(null);
 
-    // Staging & Layout Logic
-    const { stagedData, finalExtent, center, planes } = React.useMemo(() => {
+    // Symmetric Box Logic
+    const { stagedData, finalExtent, center, planes, anchor } = React.useMemo(() => {
         // Default returns for empty data
         if (!data.points || data.points.length < 2) {
             return {
@@ -90,71 +90,60 @@ const SceneContent = ({
                 finalExtent: 10,
                 center: new THREE.Vector3(0, 0, 0),
                 planes: {
-                    xy: { pos: [0, 0, 0] as [number, number, number], size: [10, 10] as [number, number] },
-                    xz: { pos: [0, 0, 0] as [number, number, number], size: [10, 10] as [number, number] },
-                    yz: { pos: [0, 0, 0] as [number, number, number], size: [10, 10] as [number, number] }
-                }
+                    z: { pos: [0, 0, -5] as [number, number, number], size: [10, 10] as [number, number] },
+                    y: { pos: [0, -5, 0] as [number, number, number], size: [10, 10] as [number, number] },
+                    x: { pos: [-5, 0, 0] as [number, number, number], size: [10, 10] as [number, number] }
+                },
+                anchor: new THREE.Vector3(-5, -5, -5)
             };
         }
-
-        const b = computeBounds(data.points);
-        const maxAbs = Math.max(
-            Math.abs(b.minX), Math.abs(b.maxX),
-            Math.abs(b.minY), Math.abs(b.maxY),
-            Math.abs(b.minZ), Math.abs(b.maxZ)
-        );
-        const rawExtent = maxAbs * 2.2;
-        const ox = rawExtent * 0.15;
-        const oy = rawExtent * 0.15;
-        const oz = rawExtent * 0.35;
-
-        const stagedPoints = data.points.map(p => ({
-            x: p.x + ox,
-            y: p.y + oy,
-            z: p.z + oz
-        }));
-
-        const sData = { ...data, points: stagedPoints };
-
-        // Remove parsed cursor usage from logic as we depend on playbackRt or runtime calculation now?
-        // Actually, if static (no playbackRt), we might want to show sCursor if it exists in data?
-        // But the prompt says "Refactor: Remove all playback-related state... cursor... from useHelixState".
-        // useHelixState might still have `cursor` if parsed from `useMemo` logic?
-        // Let's assume for now we only show dynamic cursor from playbackRt.
-        // Wait, if playback is PAUSED, playbackRt still has a position.
-        // So we ALWAYS use playbackRt position if available.
 
         let minX = Infinity, maxX = -Infinity;
         let minY = Infinity, maxY = -Infinity;
         let minZ = Infinity, maxZ = -Infinity;
-        for (const p of stagedPoints) {
+
+        for (const p of data.points) {
             if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
             if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
             if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
         }
 
-        const maxDist = Math.max(
-            Math.abs(minX), Math.abs(maxX),
-            Math.abs(minY), Math.abs(maxY),
-            Math.abs(minZ), Math.abs(maxZ)
-        );
-        const fExtent = maxDist * 2.2;
-        const c = new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+        // Global Symmetric Extent
+        const absMaxX = Math.max(Math.abs(minX), Math.abs(maxX));
+        const absMaxY = Math.max(Math.abs(minY), Math.abs(maxY));
+        const absMaxZ = Math.max(Math.abs(minZ), Math.abs(maxZ));
 
-        const pad = 1.2;
-        const widthX = (maxX - minX) * pad;
-        const heightY = (maxY - minY) * pad;
-        const widthZ = (maxZ - minZ) * pad;
+        const halfSize = Math.max(absMaxX, absMaxY, absMaxZ) * 1.15; // 15% Padding
+        const planeSize = halfSize * 2;
+
+        // Planes are positioned at NEGATIVE extent (behind the data)
+        const anchorVal = -halfSize;
+
+        // Center is 0,0,0 because our box is symmetric
+        const c = new THREE.Vector3(0, 0, 0);
 
         return {
-            stagedData: sData,
-            finalExtent: fExtent,
+            stagedData: data,
+            finalExtent: planeSize,
             center: c,
             planes: {
-                xy: { pos: [(minX + maxX) / 2, (minY + maxY) / 2, 0] as [number, number, number], size: [widthX, heightY] as [number, number] },
-                xz: { pos: [(minX + maxX) / 2, 0, (minZ + maxZ) / 2] as [number, number, number], size: [widthX, widthZ] as [number, number] },
-                yz: { pos: [0, (minY + maxY) / 2, (minZ + maxZ) / 2] as [number, number, number], size: [widthZ, heightY] as [number, number] }
-            }
+                // Z Plane (XY Projection) sits at z = -halfSize
+                z: {
+                    pos: [0, 0, anchorVal] as [number, number, number],
+                    size: [planeSize, planeSize] as [number, number]
+                },
+                // Y Plane (XZ Projection) sits at y = -halfSize
+                y: {
+                    pos: [0, anchorVal, 0] as [number, number, number],
+                    size: [planeSize, planeSize] as [number, number]
+                },
+                // X Plane (YZ Projection) sits at x = -halfSize
+                x: {
+                    pos: [anchorVal, 0, 0] as [number, number, number],
+                    size: [planeSize, planeSize] as [number, number]
+                }
+            },
+            anchor: new THREE.Vector3(anchorVal, anchorVal, anchorVal)
         };
     }, [data.revision, data.points]);
 
@@ -162,22 +151,15 @@ const SceneContent = ({
     useFrame((_, delta) => {
         if (!playbackRt || !config || !stagedData.points || stagedData.points.length < 2) return;
 
-        // Drive the Clock logic (only main viewport does this)
         if (driveClock) {
             playbackRt.step(delta, config.tRange[0], config.tRange[1]);
         }
 
-        // Read current time
         const t = playbackRt.tRef.current;
         const [tMin, tMax] = config.tRange;
         const duration = tMax - tMin || 1;
-
-        // Calculate U (0..1)
         const u = Math.max(0, Math.min(1, (t - tMin) / duration));
 
-        // Interpolate Logic
-        // TODO: Handle user loopT wrapping properly if different from duration
-        // For now assume t maps linearly to index 0..N
         const idx = u * (stagedData.points.length - 1);
         const i = Math.floor(idx);
         const f = idx - i;
@@ -189,45 +171,47 @@ const SceneContent = ({
             const py = p1.y + (p2.y - p1.y) * f;
             const pz = p1.z + (p2.z - p1.z) * f;
 
-            // Update Cursor
+            const ax = anchor.x;
+            const ay = anchor.y;
+            const az = anchor.z;
+
             if (cursorMeshRef.current) {
                 cursorMeshRef.current.position.set(px, py, pz);
                 cursorMeshRef.current.visible = true;
             }
 
-            // Update Diagram Elements (Projections)
             if (showDiagramElements && fitReady && is3D) {
-                // XY
-                if (projXYRef.current) projXYRef.current.position.set(px, py, 0);
-                if (lineXYRef.current) {
-                    lineXYRef.current.geometry.setFromPoints([
+                // Z Projection (XY)
+                if (projZRef.current) projZRef.current.position.set(px, py, az);
+                if (lineZRef.current) {
+                    lineZRef.current.geometry.setFromPoints([
                         new THREE.Vector3(px, py, pz),
-                        new THREE.Vector3(px, py, 0)
+                        new THREE.Vector3(px, py, az)
                     ]);
-                    lineXYRef.current.computeLineDistances();
-                    lineXYRef.current.visible = true;
+                    lineZRef.current.computeLineDistances();
+                    lineZRef.current.visible = true;
                 }
 
-                // XZ
-                if (projXZRef.current) projXZRef.current.position.set(px, 0, pz);
-                if (lineXZRef.current) {
-                    lineXZRef.current.geometry.setFromPoints([
+                // Y Projection (XZ)
+                if (projYRef.current) projYRef.current.position.set(px, ay, pz);
+                if (lineYRef.current) {
+                    lineYRef.current.geometry.setFromPoints([
                         new THREE.Vector3(px, py, pz),
-                        new THREE.Vector3(px, 0, pz)
+                        new THREE.Vector3(px, ay, pz)
                     ]);
-                    lineXZRef.current.computeLineDistances();
-                    lineXZRef.current.visible = true;
+                    lineYRef.current.computeLineDistances();
+                    lineYRef.current.visible = true;
                 }
 
-                // YZ
-                if (projYZRef.current) projYZRef.current.position.set(0, py, pz);
-                if (lineYZRef.current) {
-                    lineYZRef.current.geometry.setFromPoints([
+                // X Projection (YZ)
+                if (projXRef.current) projXRef.current.position.set(ax, py, pz);
+                if (lineXRef.current) {
+                    lineXRef.current.geometry.setFromPoints([
                         new THREE.Vector3(px, py, pz),
-                        new THREE.Vector3(0, py, pz)
+                        new THREE.Vector3(ax, py, pz)
                     ]);
-                    lineYZRef.current.computeLineDistances();
-                    lineYZRef.current.visible = true;
+                    lineXRef.current.computeLineDistances();
+                    lineXRef.current.visible = true;
                 }
             }
         }
@@ -237,28 +221,27 @@ const SceneContent = ({
     useEffect(() => {
         let raf = 0;
         const run = () => {
-            // Robust Check: Wait for Data AND Canvas Size
             if (!stagedData.points || stagedData.points.length < 2 || size.width === 0 || size.height === 0) {
                 raf = requestAnimationFrame(run);
                 return;
             }
 
-            // Fit Camera to Staged Curve Center
             if (is3D && camera instanceof THREE.PerspectiveCamera && controlsRef.current) {
-                // Determine framing distance based on Rectangular Extents (approx diagonal)
                 const dist = finalExtent * 1.5;
-
                 controlsRef.current.target.copy(center);
                 controlsRef.current.update();
-
                 const vec = new THREE.Vector3(1, 0.8, 1.5).normalize().multiplyScalar(dist);
                 camera.position.copy(center).add(vec);
                 camera.lookAt(center);
                 camera.updateProjectionMatrix();
             } else if (!is3D && camera instanceof THREE.OrthographicCamera) {
-                // 2D Fit logic: Similar scaling
                 camera.zoom = 500 / (finalExtent * 0.7);
-                camera.position.set(0, 0, 10);
+                // Position depends on type (x/y/z)
+                if (type === 'z') camera.position.set(0, 0, finalExtent); // Look at XY
+                else if (type === 'y') camera.position.set(0, finalExtent, 0); // Look at XZ
+                else if (type === 'x') camera.position.set(finalExtent, 0, 0); // Look at YZ
+
+                camera.lookAt(0, 0, 0);
                 camera.updateProjectionMatrix();
             }
 
@@ -267,30 +250,48 @@ const SceneContent = ({
 
         raf = requestAnimationFrame(run);
         return () => cancelAnimationFrame(raf);
-    }, [stagedData, finalExtent, center, is3D, camera, mode, size]);
+    }, [stagedData, finalExtent, center, is3D, camera, mode, size, type]);
 
     const planeVisibleScale = fitReady ? 1 : 0.0001;
+    // Map nice theme keys
+    // Z Plane corresponds to XY Projection (user sees XY)
+    const themeZ = themes.z || themes.xy || DEFAULT_THEME_FALLBACK.z;
+    // Y Plane corresponds to XZ Projection (user sees XZ)
+    const themeY = themes.y || themes.xz || DEFAULT_THEME_FALLBACK.y;
+    // X Plane corresponds to YZ Projection (user sees YZ)
+    const themeX = themes.x || themes.yz || DEFAULT_THEME_FALLBACK.x;
+
+    // Determine visibility based on Viewport Type
+    // 3D: Show all (if enabled)
+    // Z (XY View): Show Z Plane only
+    // Y (XZ View): Show Y Plane only
+    // X (YZ View): Show X Plane only
+    const showZ = is3D || type === 'z';
+    const showY = is3D || type === 'y';
+    const showX = is3D || type === 'x';
 
     return (
         <>
             {is3D ? (
                 <PerspectiveCamera makeDefault fov={45} />
             ) : (
-                <OrthographicCamera makeDefault position={[0, 0, 10]} />
+                <OrthographicCamera makeDefault position={[0, 0, 10]} zoom={20} />
             )}
 
-            {is3D && (
-                <OrbitControls
-                    ref={controlsRef}
-                    makeDefault
-                    enableDamping
-                    dampingFactor={0.1}
-                    enableZoom
-                    enableRotate
-                    enablePan
-                    touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
-                />
-            )}
+            <OrbitControls
+                ref={controlsRef}
+                makeDefault
+                enableDamping
+                dampingFactor={0.08}
+                enableZoom
+                enablePan
+                enableRotate={is3D}
+                screenSpacePanning={!is3D}
+                touches={{
+                    ONE: is3D ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN,
+                    TWO: THREE.TOUCH.DOLLY_PAN
+                }}
+            />
 
             <ambientLight intensity={0.7} />
             <pointLight position={[10, 10, 10]} intensity={0.8} />
@@ -300,94 +301,75 @@ const SceneContent = ({
                 {(mode === 'curve' || mode === 'complex' || mode === 'auto') && <CurveRenderer data={stagedData} />}
                 {(mode === 'surface') && <SurfaceRenderer data={stagedData} />}
 
-                {showDiagramElements && is3D && (
+                {showDiagramElements && (
                     <group>
-                        {fitReady && (
-                            <gridHelper position={[0, 0, 0]} args={[finalExtent, 10, 0x888888, 0xcccccc]} />
+                        {fitReady && is3D && (
+                            <gridHelper position={[0, -finalExtent / 2, 0]} args={[finalExtent, 10, 0x888888, 0xcccccc]} />
                         )}
 
-                        <ProjectionPlane position={planes.xy.pos} size={planes.xy.size} rotation={[0, 0, 0]} color={themes.xy.hex} alpha={themes.xy.alpha} visibleScale={planeVisibleScale} />
-                        <ProjectionPlane position={planes.xz.pos} size={planes.xz.size} rotation={[-Math.PI / 2, 0, 0]} color={themes.xz.hex} alpha={themes.xz.alpha} visibleScale={planeVisibleScale} />
-                        <ProjectionPlane position={planes.yz.pos} size={planes.yz.size} rotation={[0, Math.PI / 2, 0]} color={themes.yz.hex} alpha={themes.yz.alpha} visibleScale={planeVisibleScale} />
+                        {/* Z Plane (XY) */}
+                        {showZ && <ProjectionPlane position={planes.z.pos} size={planes.z.size} rotation={[0, 0, 0]} color={themeZ.hex} alpha={themeZ.alpha} visibleScale={planeVisibleScale} />}
+                        {/* Y Plane (XZ) */}
+                        {showY && <ProjectionPlane position={planes.y.pos} size={planes.y.size} rotation={[-Math.PI / 2, 0, 0]} color={themeY.hex} alpha={themeY.alpha} visibleScale={planeVisibleScale} />}
+                        {/* X Plane (YZ) */}
+                        {showX && <ProjectionPlane position={planes.x.pos} size={planes.x.size} rotation={[0, Math.PI / 2, 0]} color={themeX.hex} alpha={themeX.alpha} visibleScale={planeVisibleScale} />}
 
                         {fitReady && mode !== 'surface' && (
                             <>
                                 {/* Projections (Shadows) */}
-                                <group position={[0, 0, 0]} scale={[1, 0, 1]}>
-                                    <CurveRenderer data={stagedData} opacity={0.3} color={themes.xz.hex} />
-                                </group>
-                                <group position={[0, 0, 0]} scale={[1, 1, 0]}>
-                                    <CurveRenderer data={stagedData} opacity={0.3} color={themes.xy.hex} />
-                                </group>
-                                <group position={[0, 0, 0]} scale={[0, 1, 1]}>
-                                    <CurveRenderer data={stagedData} opacity={0.3} color={themes.yz.hex} />
-                                </group>
+                                {showY && (
+                                    <group position={[0, anchor.y, 0]} scale={[1, 0, 1]}>
+                                        <CurveRenderer data={stagedData} opacity={0.3} color={themeY.hex} />
+                                    </group>
+                                )}
+                                {showZ && (
+                                    <group position={[0, 0, anchor.z]} scale={[1, 1, 0]}>
+                                        <CurveRenderer data={stagedData} opacity={0.3} color={themeZ.hex} />
+                                    </group>
+                                )}
+                                {showX && (
+                                    <group position={[anchor.x, 0, 0]} scale={[0, 1, 1]}>
+                                        <CurveRenderer data={stagedData} opacity={0.3} color={themeX.hex} />
+                                    </group>
+                                )}
 
-                                {/* Dynamic Projections (Points & Lines) */}
-                                <mesh ref={projXYRef} renderOrder={11}>
+                                {/* Dynamic Projections */}
+                                <mesh ref={projZRef} renderOrder={11} visible={showZ}>
                                     <sphereGeometry args={[0.08, 16, 16]} />
-                                    <meshBasicMaterial color={themes.xy.hex} depthTest={false} />
+                                    <meshBasicMaterial color={themeZ.hex} depthTest={false} />
                                 </mesh>
-                                <mesh ref={projXZRef} renderOrder={11}>
+                                <mesh ref={projYRef} renderOrder={11} visible={showY}>
                                     <sphereGeometry args={[0.08, 16, 16]} />
-                                    <meshBasicMaterial color={themes.xz.hex} depthTest={false} />
+                                    <meshBasicMaterial color={themeY.hex} depthTest={false} />
                                 </mesh>
-                                <mesh ref={projYZRef} renderOrder={11}>
+                                <mesh ref={projXRef} renderOrder={11} visible={showX}>
                                     <sphereGeometry args={[0.08, 16, 16]} />
-                                    <meshBasicMaterial color={themes.yz.hex} depthTest={false} />
+                                    <meshBasicMaterial color={themeX.hex} depthTest={false} />
                                 </mesh>
 
-                                {/* Dashed Lines using Native THREE.LineSegments */}
-                                <lineSegments ref={lineXYRef} renderOrder={12}>
+                                <lineSegments ref={lineZRef} renderOrder={12} visible={showZ}>
                                     <bufferGeometry />
-                                    <lineDashedMaterial color={themes.xy.hex} dashSize={0.2} gapSize={0.1} transparent opacity={0.9} depthTest={false} />
+                                    <lineDashedMaterial color={themeZ.hex} dashSize={0.2} gapSize={0.1} transparent opacity={0.9} depthTest={false} />
                                 </lineSegments>
-                                <lineSegments ref={lineXZRef} renderOrder={12}>
+                                <lineSegments ref={lineYRef} renderOrder={12} visible={showY}>
                                     <bufferGeometry />
-                                    <lineDashedMaterial color={themes.xz.hex} dashSize={0.2} gapSize={0.1} transparent opacity={0.9} depthTest={false} />
+                                    <lineDashedMaterial color={themeY.hex} dashSize={0.2} gapSize={0.1} transparent opacity={0.9} depthTest={false} />
                                 </lineSegments>
-                                <lineSegments ref={lineYZRef} renderOrder={12}>
+                                <lineSegments ref={lineXRef} renderOrder={12} visible={showX}>
                                     <bufferGeometry />
-                                    <lineDashedMaterial color={themes.yz.hex} dashSize={0.2} gapSize={0.1} transparent opacity={0.9} depthTest={false} />
+                                    <lineDashedMaterial color={themeX.hex} dashSize={0.2} gapSize={0.1} transparent opacity={0.9} depthTest={false} />
                                 </lineSegments>
                             </>
                         )}
-
                         {fitReady && <axesHelper args={[finalExtent * 0.5]} position={[0, 0, 0]} />}
                     </group>
                 )}
 
-                {/* Main Cursor (Dynamic via Ref) */}
                 <mesh ref={cursorMeshRef}>
                     <sphereGeometry args={[0.08, 32, 32]} />
                     <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.6} />
                 </mesh>
             </group>
-
-            {/* 2D View Helpers */}
-            {!is3D && fitReady && (
-                <>
-                    {/* 2D Grid: Locked to Extent/Global Logic */}
-                    <gridHelper args={[finalExtent, 10, 0x888888, 0x444444]} rotation={[Math.PI / 2, 0, 0]} />
-                    <group
-                        rotation={
-                            type === 'xz' ? [-Math.PI / 2, 0, 0] :
-                                type === 'yz' ? [0, -Math.PI / 2, 0] :
-                                    [0, 0, 0]
-                        }
-                    >
-                        <CurveRenderer data={stagedData} />
-                        {/* We removed stagedCursor ref from useMemo, so we rely on cursorMeshRef even in 2D? 
-                             Wait, 2D viewport is a separate Canvas. 
-                             It has its own SceneContent. 
-                             So it has its own cursorMeshRef. 
-                             And useFrame runs there too.
-                             So 2D cursor SHOULD work via useFrame just like 3D.
-                             We don't need the static mesh here.
-                         */}
-                    </group>
-                </>
-            )}
         </>
     );
 };
@@ -396,13 +378,19 @@ export const Viewport: React.FC<ViewportProps> = (props) => {
     const is3D = props.type === '3d';
     const themes = props.planeTheme || DEFAULT_THEME_FALLBACK;
 
+    let bgLabel = "";
+    if (is3D) bgLabel = props.showDiagramElements ? 'Diagram View' : '3D View';
+    else if (props.type === 'x') bgLabel = 'X Plane (YZ)';
+    else if (props.type === 'y') bgLabel = 'Y Plane (XZ)';
+    else if (props.type === 'z') bgLabel = 'Z Plane (XY)';
+
     return (
         <div className={clsx("relative w-full h-full glass-panel overflow-hidden", props.className)} style={{ touchAction: 'none' }}>
             <div className="absolute top-2 left-2 z-10 text-xs font-bold text-[var(--text-muted)] uppercase pointer-events-none">
-                {is3D ? (props.showDiagramElements ? 'Diagram View' : '3D View') : `${props.type.toUpperCase()} proj`}
+                {bgLabel}
             </div>
 
-            <Canvas style={{ touchAction: 'none' }}>
+            <Canvas key={`plane-${props.type}`} style={{ touchAction: 'none' }}>
                 <SceneContent {...props} themes={themes} />
             </Canvas>
         </div>

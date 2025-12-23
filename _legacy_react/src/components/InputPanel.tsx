@@ -1,12 +1,10 @@
 import React from "react";
 
 export function InputPanel({
-    toolbar,
     editor,
     errors,
     onRender,
 }: {
-    toolbar?: React.ReactNode;
     editor: React.ReactNode;
     errors: string[];
     onRender: () => void;
@@ -22,8 +20,6 @@ export function InputPanel({
                     Render
                 </button>
             </div>
-
-            {toolbar && <div className="mt-2">{toolbar}</div>}
 
             <div className="mt-2">{editor}</div>
 

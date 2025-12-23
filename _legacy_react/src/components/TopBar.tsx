@@ -32,14 +32,14 @@ export function TopBar({
     const categories: PresetCategory[] = ["수학", "물리학", "화학", "생명과학", "지구과학"];
 
     return (
-        <div className="mx-auto max-w-[1200px] px-3 py-2 flex items-center gap-2">
-            <div className="font-semibold tracking-tight">HelixPlot</div>
-
-            <div className="ml-2 flex items-center gap-2">
+        <div className="mx-auto max-w-[1200px] px-3 pb-2 pt-[max(env(safe-area-inset-top),12px)] flex flex-col gap-2">
+            {/* Row 1: Title + Dropdown */}
+            <div className="flex items-center gap-3 w-full">
+                <div className="font-semibold tracking-tight shrink-0">HelixPlot</div>
                 <select
                     value={preset}
                     onChange={(e) => onPreset(e.target.value)}
-                    className="h-9 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none max-w-[160px] sm:max-w-[240px]"
+                    className="h-9 flex-1 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none w-full min-w-0"
                 >
                     {categories.map((cat) => (
                         <optgroup key={cat} label={cat}>
@@ -53,24 +53,22 @@ export function TopBar({
                 </select>
             </div>
 
-            <div className="ml-auto flex items-center gap-2">
-                {/* ViewMode toggle */}
+            {/* Row 2: Controls */}
+            <div className="flex items-center gap-2 flex-wrap">
                 <button
                     onClick={onToggleViewMode}
-                    className="h-9 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm hover:opacity-90"
+                    className="h-9 flex-1 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm hover:opacity-90 whitespace-nowrap"
                 >
-                    {viewMode === "diagram" ? "Diagram" : "Quad"}
+                    {viewMode === "diagram" ? "Diagram View" : "Quad View"}
                 </button>
 
-                {/* Theme toggle */}
                 <button
                     onClick={onToggleTheme}
-                    className="h-9 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm hover:opacity-90"
+                    className="h-9 w-20 shrink-0 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm hover:opacity-90"
                 >
                     {theme === "diagram" ? "Light" : "Dark"}
                 </button>
 
-                {/* placeholder icon buttons */}
                 <IconButton onClick={onSettings}>⚙️</IconButton>
             </div>
         </div>

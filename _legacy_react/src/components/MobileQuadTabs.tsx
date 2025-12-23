@@ -4,13 +4,13 @@ import type { Mode, SampleResult, RenderConfig } from "../core/types";
 import type { PlaneTheme } from "../hooks/usePlaneTheme";
 import type { PlaybackRuntime } from "../hooks/usePlaybackRuntime";
 
-type VType = "3d" | "xy" | "xz" | "yz";
+type VType = "3d" | "x" | "y" | "z";
 
 const TABS: { key: VType; label: string }[] = [
     { key: "3d", label: "3D" },
-    { key: "xy", label: "XY" },
-    { key: "xz", label: "XZ" },
-    { key: "yz", label: "YZ" },
+    { key: "x", label: "X Plane" },
+    { key: "y", label: "Y Plane" },
+    { key: "z", label: "Z Plane" },
 ];
 
 export function MobileQuadTabs({
@@ -69,6 +69,7 @@ export function MobileQuadTabs({
                             playbackRt={playbackRt}
                             config={config}
                             driveClock={true}
+                            showDiagramElements={true}
                         />
                     </div>
                 </div>
