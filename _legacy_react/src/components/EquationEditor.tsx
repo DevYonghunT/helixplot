@@ -1,21 +1,18 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import 'mathlive';
 import clsx from 'clsx';
-import { EquationEditorModal } from './EquationEditorModal';
 
 export function EquationEditor({
     latex,
-    onLatexChange,
     compiledExpr,
-    error
+    error,
+    onOpenEditor
 }: {
     latex: string,
-    onLatexChange: (l: string) => void,
     compiledExpr: string,
-    error: string | null
+    error: string | null,
+    onOpenEditor?: () => void
 }) {
-    // Modal State
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const mf = useRef<any>(null);
 
     // Keep the math-field just for PREVIEW in the bottom sheet.
@@ -30,7 +27,7 @@ export function EquationEditor({
                         {/* Overlay to catch clicks and open modal */}
                         <div
                             className="absolute inset-0 z-10 cursor-pointer"
-                            onClick={() => setIsModalOpen(true)}
+                            onClick={() => onOpenEditor?.()}
                         />
                         {/* @ts-ignore */}
                         <math-field
@@ -52,7 +49,7 @@ export function EquationEditor({
 
                     {/* Edit Button (Opens Modal) */}
                     <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => onOpenEditor?.()}
                         className={clsx(
                             "h-[56px] w-[56px] shrink-0 rounded-xl border border-[var(--border)] bg-[var(--card)] flex items-center justify-center text-xl shadow-sm transition-all active:scale-95 text-[var(--text)]"
                         )}
@@ -84,21 +81,6 @@ export function EquationEditor({
                     </div>
                 </div>
             </div>
-
-            {/* Full Screen Editor Modal */}
-            <EquationEditorModal
-                open={isModalOpen}
-                initialLatex={latex}
-                onClose={() => setIsModalOpen(false)}
-                onApply={(newLatex) => {
-                    onLatexChange(newLatex);
-                    // Modal closes automatically via onClose call in Modal component? 
-                    // No, the prop says onApply just takes latex.
-                    // We should close it here or inside?
-                    // The usage inside Modal is: onApply(); onClose();
-                    // So we are good.
-                }}
-            />
         </div>
     );
 }

@@ -8,7 +8,8 @@ import { MobileQuadTabs } from "./components/MobileQuadTabs";
 import { Editor } from "./components/Editor";
 import { Viewport } from "./components/Viewport";
 import { SettingsModal } from "./components/SettingsModal";
-// (MathToolbar removed)
+import { EquationEditorModal } from "./components/EquationEditorModal";
+
 import { useHelixState } from "./hooks/useHelixState";
 import { usePlaneTheme } from "./hooks/usePlaneTheme";
 import { useAutoBound } from "./hooks/useAutoBound";
@@ -23,55 +24,62 @@ export default function App() {
         lastGoodExpr, exprError,
         errors, data, config, userPeriodT
     } = useHelixState();
+
     const { theme: planeTheme, updatePlane, recents, addRecent, resetTheme } = usePlaneTheme();
     const playbackRt = usePlaybackRuntime();
     const { bound, center } = useAutoBound(data);
 
-    // refs
+    // Global keyboard inset
+    useKeyboardInset();
+
     const editorRef = useRef<HTMLTextAreaElement>(null);
 
-    // theme/viewmode local state
     const [theme, setTheme] = useState<"diagram" | "modern">("diagram");
     const [viewMode, setViewMode] = useState<"diagram" | "quad">("diagram");
-    // Initialize Global Keyboard Tracking
-    useKeyboardInset();
     const [preset, setPreset] = useState(DEFAULT_PRESET_ID);
     const [showSettings, setShowSettings] = useState(false);
 
-    // Sync user defined period to playback runtime
+    // ✅ B안: App 루트에서만 모달 상태 관리
+    const [eqOpen, setEqOpen] = useState(false);
+
+    // userPeriodT -> runtime loopT 동기화(PlaybackBar props 아님!)
     useEffect(() => {
         const val = parseFloat(userPeriodT);
         playbackRt.setLoopT(isNaN(val) ? 0 : val);
     }, [userPeriodT, playbackRt]);
 
-    // Force default preset on first load if input is default or empty
+    // 초기 프리셋/라텍스 셋
     useEffect(() => {
         const defaultFn = CORE_PRESETS.find(p => p.id === DEFAULT_PRESET_ID);
         if (defaultFn && (!input || input.includes("Lissajous"))) {
-            // setInput(defaultFn.code); // Optional: Force overwrite initial state
             if (defaultFn.latex) setLatexInputRaw(defaultFn.latex);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handlePresetChange = (newId: string) => {
         setPreset(newId);
         const p = CORE_PRESETS.find(x => x.id === newId);
-        if (p) {
-            setInput(p.code);
-            if (p.latex) {
-                setLatexInputRaw(p.latex); // Just set raw, don't trigger updateFromLatex to avoid double-update
-            } else {
-                setLatexInputRaw(""); // Clear if no latex provided
-            }
-        }
-    };
+        if (!p) return;
 
-    // function handleInsertText removed
+        setInput(p.code);
+        setLatexInputRaw(p.latex ?? "");
+    };
 
     useEffect(() => {
         document.documentElement.classList.remove("theme-diagram", "theme-modern");
         document.documentElement.classList.add(theme === "diagram" ? "theme-diagram" : "theme-modern");
     }, [theme]);
+
+    const viewportProps = {
+        mode: config.mode,
+        data,
+        valBound: bound,
+        valCenter: center,
+        planeTheme,
+        playbackRt,
+        config
+    };
 
     const editorNode = (
         <Editor
@@ -79,11 +87,11 @@ export default function App() {
             value={input}
             onChange={setInput}
             errors={errors}
-            // New Props
             latex={latexInput}
-            onLatexChange={updateFromLatex}
             compiledExpr={lastGoodExpr}
             exprError={exprError}
+            // ✅ Editor/EquationEditor가 이 prop을 받도록 아래 2)도 같이 적용
+            onOpenEquationEditor={() => setEqOpen(true)}
         />
     );
 
@@ -91,7 +99,7 @@ export default function App() {
         <InputPanel
             editor={editorNode}
             errors={errors}
-            onRender={() => {/* already auto-rendering */ }}
+            onRender={() => { /* already auto-rendering */ }}
         />
     );
 
@@ -101,16 +109,6 @@ export default function App() {
             tRange={config.tRange}
         />
     );
-
-    const viewportProps = {
-        mode: config.mode,
-        data: data,
-        valBound: bound,
-        valCenter: center,
-        planeTheme: planeTheme,
-        playbackRt: playbackRt,
-        config: config
-    };
 
     return (
         <>
@@ -149,6 +147,7 @@ export default function App() {
                                         config={config}
                                     />
                                 </div>
+
                                 <div className="hidden sm:grid h-full grid-cols-2 grid-rows-2 gap-3">
                                     <Viewport type="3d" className="rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow)]" {...viewportProps} showDiagramElements={true} driveClock={true} />
                                     <Viewport type="z" className="rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow)]" {...viewportProps} showDiagramElements={true} />
@@ -164,6 +163,14 @@ export default function App() {
             />
 
             <MobileSheet input={inputPanelNode} playback={playbackNode} />
+
+            {/* ✅ App 루트 단일 모달 */}
+            <EquationEditorModal
+                open={eqOpen}
+                initialLatex={latexInput}
+                onClose={() => setEqOpen(false)}
+                onApply={(latex) => updateFromLatex(latex)}
+            />
 
             {showSettings && (
                 <SettingsModal

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
+import { createPortal } from 'react-dom';
 import { X, Check } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
-import { Keyboard } from '@capacitor/keyboard';
+import { MathLiveInput } from './MathLiveInput';
+import 'katex/dist/katex.min.css';
 
 interface EquationEditorModalProps {
     open: boolean;
@@ -12,113 +11,139 @@ interface EquationEditorModalProps {
     onApply: (latex: string) => void;
 }
 
+// Quick Bar Symbols
+const QUICK_SYMBOLS = [
+    { label: 'frac', template: '\\frac{#0}{#1}' },
+    { label: '√', template: '\\sqrt{#0}' },
+    { label: '^', template: '^{#0}' },
+    { label: '_', template: '_{#0}' },
+    { label: 'π', template: '\\pi' },
+    { label: 'θ', template: '\\theta' },
+    { label: 'sin', template: '\\sin(#0)' },
+    { label: 'cos', template: '\\cos(#0)' },
+    { label: 'tan', template: '\\tan(#0)' },
+    { label: 'log', template: '\\log(#0)' },
+    { label: 'ln', template: '\\ln(#0)' },
+    { label: 'e', template: 'e^{#0}' },
+];
+
 export function EquationEditorModal({ open, initialLatex, onClose, onApply }: EquationEditorModalProps) {
+    const dockRef = useRef<HTMLDivElement>(null);
+    const [dockHeight, setDockHeight] = useState(280); // Default guess
+
+    // Use Portal? Only if open
+    if (!open) return null;
+
+    return createPortal(
+        <EquationEditorContent
+            initialLatex={initialLatex}
+            onClose={onClose}
+            onApply={onApply}
+            dockRef={dockRef}
+            setDockHeight={setDockHeight}
+            dockHeight={dockHeight}
+        />,
+        document.body
+    );
+}
+
+// Extracted Content Component for Portal context 
+function EquationEditorContent({
+    initialLatex, onClose, onApply, dockRef, setDockHeight, dockHeight
+}: {
+    initialLatex: string,
+    onClose: () => void,
+    onApply: (l: string) => void,
+    dockRef: React.RefObject<HTMLDivElement | null>,
+    setDockHeight: (h: number) => void,
+    dockHeight: number
+}) {
     const [draftLatex, setDraftLatex] = useState(initialLatex);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Sync initial state
+    // Lock body scroll
     useEffect(() => {
-        if (open) {
-            setDraftLatex(initialLatex);
-            // Focus logic
-            setTimeout(() => {
-                if (textareaRef.current) {
-                    textareaRef.current.focus();
-                    // Optional: show keyboard manually if needed
-                    if (Capacitor.isNativePlatform()) {
-                        Keyboard.show().catch(() => { });
-                    }
-                }
-            }, 100);
-        }
-    }, [open, initialLatex]);
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = ''; }
+    }, []);
 
-    // Handle Render Preview
-    const renderPreview = () => {
-        try {
-            return katex.renderToString(draftLatex || '\\text{Empty}', {
-                throwOnError: false,
-                displayMode: true,
-                output: 'html'
-            });
-        } catch (e) {
-            return `<span class="text-red-500">Invalid LaTeX</span>`;
+    // Measure Dock Height
+    useEffect(() => {
+        if (!dockRef.current) return;
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setDockHeight(entry.contentRect.height);
+            }
+        });
+        ro.observe(dockRef.current);
+        return () => ro.disconnect();
+    }, [dockRef, setDockHeight]);
+
+    // Handle QuickBar Insert
+    const handleQuickInsert = (template: string) => {
+        // @ts-ignore
+        const mf = document.activeElement as any;
+        if (mf && mf.tagName === 'MATH-FIELD') {
+            mf.executeCommand(['insert', template, { format: 'latex' }]);
         }
     };
 
-    if (!open) return null;
-
     return (
-        <div
-            className="fixed inset-0 z-50 bg-[var(--bg)] flex flex-col"
-            style={{
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                paddingTop: 'env(safe-area-inset-top)',
-                // paddingBottom handled inside scroll container or here?
-                // If we want the toolbar fixed at bottom of safe area, we do flex.
-                // But keyboard pushes logic relies on --kb.
-            }}
-        >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border)] bg-[var(--card)] shrink-0">
-                <button
-                    onClick={onClose}
-                    className="p-2 -ml-2 text-[var(--muted)] hover:text-[var(--text)]"
-                >
-                    <X size={24} />
-                </button>
-                <div className="font-semibold">Equation Editor</div>
-                <button
-                    onClick={() => {
-                        onApply(draftLatex);
-                        onClose();
-                    }}
-                    className="p-2 -mr-2 text-[var(--accent)] font-bold"
-                >
-                    <Check size={24} />
-                </button>
-            </div>
-
-            {/* Scrollable Content */}
-            <div
-                ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto p-4 flex flex-col gap-6"
-                style={{
-                    // Keyboard padding
-                    paddingBottom: "calc(var(--kb, 0px) + env(safe-area-inset-bottom) + 20px)"
-                }}
-            >
-                {/* Preview Card */}
-                <div className="bg-white rounded-xl shadow-sm border border-[var(--border)] p-6 min-h-[100px] flex items-center justify-center text-black overflow-x-auto">
-                    <div dangerouslySetInnerHTML={{ __html: renderPreview() }} />
+        <div className="eqm-overlay">
+            <div className="eqm-sheet">
+                {/* Header */}
+                <div className="eqm-header shrink-0 border-b border-[var(--border)] bg-white">
+                    <button onClick={onClose} className="eqm-header-btn text-[var(--muted)] hover:bg-slate-100">
+                        <X size={24} />
+                    </button>
+                    <div className="font-bold text-lg text-slate-800">Equation</div>
+                    <button
+                        onClick={() => onApply(draftLatex)}
+                        className="eqm-header-btn text-[var(--accent)] hover:bg-[var(--accent-light)]"
+                    >
+                        <Check size={28} strokeWidth={3} />
+                    </button>
                 </div>
 
-                {/* Input Area */}
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-[var(--muted)]">LaTeX Source</label>
-                    <textarea
-                        ref={textareaRef}
-                        value={draftLatex}
-                        onChange={e => setDraftLatex(e.target.value)}
-                        className="w-full bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 text-base font-mono resize-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none"
-                        rows={5}
-                        inputMode="text"
-                        placeholder="\sin(x)..."
-                        onFocus={() => {
-                            // Scroll into view logic
-                            setTimeout(() => {
-                                textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 300);
-                        }}
-                    />
+                {/* Body Scroll */}
+                <div
+                    className="eqm-body"
+                    style={{ paddingBottom: `calc(${dockHeight}px + env(safe-area-inset-bottom) + 16px)` }}
+                >
+                    {/* Input Card */}
+                    <div className="eqm-card min-h-[120px] flex items-center justify-center mb-6 relative">
+                        <MathLiveInput
+                            valueLatex={draftLatex}
+                            onChangeLatex={setDraftLatex}
+                            dockRef={dockRef}
+                            autoFocus={true}
+                            onFocused={() => { }}
+                        />
+                    </div>
+
+                    <div className="text-center text-xs text-slate-400 mt-4">
+                        Use the keyboard below to edit
+                    </div>
                 </div>
 
-                <div className="text-xs text-[var(--muted)] text-center mt-4">
-                    Supports Standard LaTeX Commands
+                {/* Dock Area */}
+                <div className="eqm-dock" ref={dockRef}>
+                    {/* QuickBar */}
+                    <div className="eqm-bar">
+                        {QUICK_SYMBOLS.map((s, i) => (
+                            <button
+                                key={i}
+                                onClick={() => handleQuickInsert(s.template)}
+                                className="h-10 min-w-[50px] px-3 rounded-xl bg-white border border-slate-200 text-sm font-medium hover:bg-slate-50 active:bg-[var(--accent)] active:text-white transition-all shrink-0 flex items-center justify-center font-mono shadow-sm mx-[2px]"
+                            >
+                                {s.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* MathLive Keyboard Container */}
+                    <div className="eqm-kbd" id="mathlive-keyboard-container" style={{ minHeight: '200px' }}>
+                        {/* MathLive will portal its keyboard here */}
+                    </div>
                 </div>
             </div>
         </div>

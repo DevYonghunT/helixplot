@@ -8,14 +8,16 @@ interface EditorProps {
     errors: string[];
     // New
     latex: string;
-    onLatexChange: (l: string) => void;
     compiledExpr: string;
     exprError: string | null;
+    // Global Modal Trigger
+    onOpenEquationEditor?: () => void;
 }
 
 export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
     value, onChange, errors,
-    latex, onLatexChange, compiledExpr, exprError
+    latex, compiledExpr, exprError,
+    onOpenEquationEditor
 }, ref) => {
     const [mode, setMode] = useState<'code' | 'eq'>('eq'); // Default to Eq mode as requested for "Codecogs UX"
 
@@ -61,9 +63,9 @@ export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
                 <div className="flex-1 w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl overflow-hidden min-h-0">
                     <EquationEditor
                         latex={latex}
-                        onLatexChange={onLatexChange}
                         compiledExpr={compiledExpr}
                         error={exprError}
+                        onOpenEditor={onOpenEquationEditor}
                     />
                 </div>
             )}
