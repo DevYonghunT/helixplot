@@ -13,6 +13,7 @@ import { useHelixState } from "./hooks/useHelixState";
 import { usePlaneTheme } from "./hooks/usePlaneTheme";
 import { useAutoBound } from "./hooks/useAutoBound";
 import { usePlaybackRuntime } from "./hooks/usePlaybackRuntime";
+import { useKeyboardInset } from "./hooks/useKeyboardInset";
 import { CORE_PRESETS, DEFAULT_PRESET_ID } from "./presets/corePresets";
 
 export default function App() {
@@ -32,6 +33,8 @@ export default function App() {
     // theme/viewmode local state
     const [theme, setTheme] = useState<"diagram" | "modern">("diagram");
     const [viewMode, setViewMode] = useState<"diagram" | "quad">("diagram");
+    // Initialize Global Keyboard Tracking
+    useKeyboardInset();
     const [preset, setPreset] = useState(DEFAULT_PRESET_ID);
     const [showSettings, setShowSettings] = useState(false);
 

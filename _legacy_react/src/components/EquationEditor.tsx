@@ -1,10 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import 'mathlive';
 import clsx from 'clsx';
-// Reuse existing toolbar but adapt it? 
-// Current MathToolbar inserts 'sin()'. For MathInput we might want '\sin'.
-// But let's see. If we insert 'sin()' into MathField, it might parse it.
-// MathLive is smart.
+import { EquationEditorModal } from './EquationEditorModal';
 
 export function EquationEditor({
     latex,
@@ -17,98 +14,24 @@ export function EquationEditor({
     compiledExpr: string,
     error: string | null
 }) {
+    // Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const mf = useRef<any>(null);
 
-    // Sync external latex to field (only if different to avoid cursor jump issues, tricky)
-    useEffect(() => {
-        if (mf.current && mf.current.value !== latex) {
-            const el = mf.current;
-            if (document.activeElement !== el) {
-                el.value = latex;
-            }
-        }
-    }, [latex]);
-
-    useEffect(() => {
-        const el = mf.current;
-        if (!el) return;
-
-        const onInput = () => {
-            const val = el.value;
-            onLatexChange(val);
-        };
-        el.addEventListener('input', onInput);
-        return () => el.removeEventListener('input', onInput);
-    }, [onLatexChange]);
-
-    // Manual Keyboard Logic
-    const [vkOpen, setVkOpen] = useState(false);
-
-    useEffect(() => {
-        // @ts-ignore
-        const vk = window.mathVirtualKeyboard;
-        if (!vk) return;
-
-        // @ts-ignore
-        vk.policy = "manual";
-
-        // Helper to dock
-        const dock = document.getElementById("math-keyboard-dock");
-        if (dock) {
-            vk.container = dock;
-        }
-
-        return () => {
-            // Cleanup? If we unmount, maybe hide keyboard?
-            vk.hide();
-        };
-    }, []);
-
-    // Keyboard Toggle Logic
-    const toggleVK = () => {
-        setVkOpen(prev => !prev);
-    };
-
-    // Effect to handle show/hide based on state
-    useEffect(() => {
-        // @ts-ignore
-        const vk = window.mathVirtualKeyboard;
-        if (!vk) return;
-
-        if (vkOpen) {
-            // Ensure docked
-            const dock = document.getElementById("math-keyboard-dock");
-            if (dock && vk.container !== dock) {
-                vk.container = dock;
-            }
-
-            // Focus field then show keyboard
-            if (mf.current) {
-                mf.current.focus();
-            }
-            vk.show();
-
-            // Scroll into view logic
-            setTimeout(() => {
-                mf.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-
-        } else {
-            vk.hide();
-        }
-    }, [vkOpen]);
-
-    // Listen for VK state changes potentially? MathLive doesn't easily expose "is open" listener via global usually,
-    // but we can trust our state or verify.
-    // Actually, letting math-field handle focus might trigger it too if we aren't careful?
-    // User said "read-only + inputmode=none". 
+    // Keep the math-field just for PREVIEW in the bottom sheet.
+    // It should be strictly read-only and no keyboard interaction.
 
     return (
         <div className="flex flex-col h-full bg-[var(--bg)]">
             <div className="p-4 flex-1 overflow-y-auto">
                 <div className="flex items-start gap-2">
-                    {/* Math Field */}
-                    <div className="flex-1 border border-[var(--accent)] rounded-xl overflow-hidden bg-white text-black shadow-sm mb-4 min-h-[56px] flex items-center">
+                    {/* Math Field Preview (Read Only) */}
+                    <div className="flex-1 border border-[var(--accent)] rounded-xl overflow-hidden bg-white text-black shadow-sm mb-4 min-h-[56px] flex items-center relative">
+                        {/* Overlay to catch clicks and open modal */}
+                        <div
+                            className="absolute inset-0 z-10 cursor-pointer"
+                            onClick={() => setIsModalOpen(true)}
+                        />
                         {/* @ts-ignore */}
                         <math-field
                             ref={mf}
@@ -118,33 +41,22 @@ export function EquationEditor({
                                 fontSize: '24px',
                                 border: 'none',
                                 outline: 'none',
+                                pointerEvents: 'none' // Ensure no interaction
                             }}
-                            // Manual Keyboard Config
-                            virtual-keyboard-mode="manual"
                             read-only
-                            inputmode="none"
-                            onPointerDown={() => {
-                                // Prevent default focus/keyboard behavior
-                                // e.preventDefault(); 
-                                // Actually preventDefault might stop focus?
-                                // We want focus but NO native keyboard.
-                                // read-only/inputmode=none does that mostly.
-                                // We just ensure VK opens.
-                                if (!vkOpen) toggleVK();
-                            }}
                         >
                             {latex}
                             {/* @ts-ignore */}
                         </math-field>
                     </div>
 
-                    {/* Keyboard Toggle Button */}
+                    {/* Edit Button (Opens Modal) */}
                     <button
-                        onClick={toggleVK}
+                        onClick={() => setIsModalOpen(true)}
                         className={clsx(
-                            "h-[56px] w-[56px] shrink-0 rounded-xl border border-[var(--border)] bg-[var(--card)] flex items-center justify-center text-xl shadow-sm transition-all active:scale-95",
-                            vkOpen ? "text-[var(--accent)] border-[var(--accent)]" : "text-[var(--text-muted)]"
+                            "h-[56px] w-[56px] shrink-0 rounded-xl border border-[var(--border)] bg-[var(--card)] flex items-center justify-center text-xl shadow-sm transition-all active:scale-95 text-[var(--text)]"
                         )}
+                        aria-label="Open Editor"
                     >
                         ⌨️
                     </button>
@@ -172,6 +84,21 @@ export function EquationEditor({
                     </div>
                 </div>
             </div>
+
+            {/* Full Screen Editor Modal */}
+            <EquationEditorModal
+                open={isModalOpen}
+                initialLatex={latex}
+                onClose={() => setIsModalOpen(false)}
+                onApply={(newLatex) => {
+                    onLatexChange(newLatex);
+                    // Modal closes automatically via onClose call in Modal component? 
+                    // No, the prop says onApply just takes latex.
+                    // We should close it here or inside?
+                    // The usage inside Modal is: onApply(); onClose();
+                    // So we are good.
+                }}
+            />
         </div>
     );
 }

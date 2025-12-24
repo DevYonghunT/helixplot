@@ -3,20 +3,20 @@
 :root.theme-diagram {
   --bg: #fbfafd;
   --text: #111827;
-  --muted: rgba(17,24,39,.55);
-  --card: rgba(255,255,255,.82);
-  --border: rgba(99,102,241,.18);
-  --shadow: 0 10px 30px rgba(17,24,39,.08);
+  --muted: rgba(17, 24, 39, .55);
+  --card: rgba(255, 255, 255, .82);
+  --border: rgba(99, 102, 241, .18);
+  --shadow: 0 10px 30px rgba(17, 24, 39, .08);
   --accent: #6366f1;
 }
 
 :root.theme-modern {
   --bg: #0b0f17;
   --text: #e5e7eb;
-  --muted: rgba(229,231,235,.58);
-  --card: rgba(255,255,255,.06);
-  --border: rgba(255,255,255,.10);
-  --shadow: 0 18px 40px rgba(0,0,0,.45);
+  --muted: rgba(229, 231, 235, .58);
+  --card: rgba(255, 255, 255, .06);
+  --border: rgba(255, 255, 255, .10);
+  --shadow: 0 18px 40px rgba(0, 0, 0, .45);
   --accent: #8b5cf6;
 }
 
@@ -24,4 +24,19 @@ body {
   background-color: var(--bg);
   color: var(--text);
   transition: background-color 0.3s, color 0.3s;
+}
+
+/* MathLive built-in keyboard toggle 숨김: 커스텀 토글(⌨️)만 사용 */
+.ML__virtual-keyboard-toggle,
+.ML__keyboard-toggle,
+.ML__menu-toggle {
+  display: none !important;
+}
+
+/* Hide Shadow DOM parts for MathLive internal UI */
+math-field::part(virtual-keyboard-toggle),
+math-field::part(menu-toggle),
+math-field::part(toolbar),
+math-field::part(controls) {
+  display: none !important;
 }
