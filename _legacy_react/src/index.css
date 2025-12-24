@@ -27,6 +27,7 @@ body {
 }
 
 /* MathLive built-in keyboard toggle 숨김: 커스텀 토글(⌨️)만 사용 */
+/* MathLive built-in keyboard toggle 숨김: 커스텀 토글(⌨️)만 사용 */
 .ML__virtual-keyboard-toggle,
 .ML__keyboard-toggle,
 .ML__menu-toggle {
@@ -39,4 +40,95 @@ math-field::part(menu-toggle),
 math-field::part(toolbar),
 math-field::part(controls) {
   display: none !important;
+}
+
+/* MathLive Overrides for Commercial UX */
+.ML__keyboard {
+  z-index: 10 !important;
+  /* Ensure it stays in dock */
+}
+
+/* --- Equation Editor Modal Commercial Layout --- */
+
+/* Overlay */
+.eqm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+/* Modal sheet */
+.eqm-sheet {
+  position: absolute;
+  inset: 0;
+  background: var(--bg, #f7f8fb);
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.eqm-header {
+  height: 52px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eqm-header-btn {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  transition: background-color 0.2s;
+}
+
+/* Body scroll (only this scrolls) */
+.eqm-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  /* padding-bottom dynamically set via inline style for dock height */
+}
+
+/* Card */
+.eqm-card {
+  background: #fff;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 18px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  padding: 14px;
+}
+
+/* Dock area */
+.eqm-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(247, 248, 251, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(100, 116, 139, 0.18);
+  z-index: 50;
+}
+
+/* Compact bar (MathToolbar) */
+.eqm-bar {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Keyboard container within dock */
+.eqm-kbd {
+  min-height: 200px;
 }

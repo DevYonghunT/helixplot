@@ -60,6 +60,11 @@ function EquationEditorContent({
 }) {
     const [draftLatex, setDraftLatex] = useState(initialLatex);
 
+    // Sync draft with prop if it changes (e.g. re-opening)
+    useEffect(() => {
+        setDraftLatex(initialLatex);
+    }, [initialLatex]);
+
     // Lock body scroll
     useEffect(() => {
         document.body.style.overflow = 'hidden';
