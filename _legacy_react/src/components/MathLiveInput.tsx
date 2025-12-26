@@ -1,5 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { MathfieldElement } from 'mathlive';
+
+// Defined Handle type for parent ref
+export interface MathLiveInputHandle {
+    insertLatex: (template: string) => void;
+    focus: () => void;
+    element: MathfieldElement | null;
+}
 
 interface MathLiveInputProps {
     valueLatex: string;
@@ -10,29 +17,43 @@ interface MathLiveInputProps {
     onFocused?: () => void;
 }
 
-export function MathLiveInput({
+export const MathLiveInput = forwardRef<MathLiveInputHandle, MathLiveInputProps>(({
     valueLatex,
     onChangeLatex,
     dockRef,
     autoFocus,
     readOnly,
     onFocused
-}: MathLiveInputProps) {
-    const mfRef = useRef<MathfieldElement>(null);
+}, ref) => {
+    const mfRef = useRef<MathfieldElement | null>(null);
+
+    // Expose methods to parent
+    useImperativeHandle(ref, () => ({
+        insertLatex: (template: string) => {
+            const mf = mfRef.current;
+            if (!mf) return;
+            // Force focus then insert
+            // @ts-ignore
+            mf.focus();
+            mf.executeCommand(['insert', template, { format: 'latex' }]);
+        },
+        focus: () => {
+            // @ts-ignore
+            mfRef.current?.focus();
+        },
+        get element() {
+            return mfRef.current;
+        }
+    }));
 
     // Initial value & event listeners
     useEffect(() => {
         const mf = mfRef.current;
         if (!mf) return;
 
-        // Settings to minimize native keyboard and dock virtual keyboard
+        // Apply basic settings
         // @ts-ignore
-        mf.mathVirtualKeyboardPolicy = "manual"; // or something to control it?
-        // Actually MathLive 0.98+ uses window.mathVirtualKeyboard
-
-        // Native keyboard suppression
-        // @ts-ignore
-        mf.setAttribute('inputmode', 'none');
+        mf.smartMode = true;
 
         const handleInput = (e: Event) => {
             const val = (e.target as MathfieldElement).value;
@@ -42,13 +63,11 @@ export function MathLiveInput({
         };
 
         const handleFocus = () => {
-            // Docking logic
             const dock = dockRef?.current;
             if (dock) {
                 // @ts-ignore
                 window.mathVirtualKeyboard.container = dock;
             }
-            // Show keyboard
             // @ts-ignore
             if (!readOnly) window.mathVirtualKeyboard.show();
 
@@ -63,9 +82,9 @@ export function MathLiveInput({
             mf.removeEventListener('focus', handleFocus);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [onChangeLatex, dockRef, readOnly]);
+    }, [onChangeLatex, readOnly]); // dockRef removed from dependency
 
-    // Sync value from props
+    // Sync value from props (One-way)
     useEffect(() => {
         const mf = mfRef.current;
         if (mf && mf.value !== valueLatex) {
@@ -76,9 +95,10 @@ export function MathLiveInput({
     // Autofocus
     useEffect(() => {
         if (autoFocus) {
-            setTimeout(() => {
+            requestAnimationFrame(() => {
+                // @ts-ignore
                 mfRef.current?.focus();
-            }, 300); // 300ms delay for portal mount
+            });
         }
     }, [autoFocus]);
 
@@ -95,9 +115,7 @@ export function MathLiveInput({
                 display: 'block'
             }}
             read-only={readOnly ? true : undefined}
-        >
-            {valueLatex}
-            {/* @ts-ignore */}
-        </math-field>
+        />
     );
-}
+});
+MathLiveInput.displayName = "MathLiveInput";

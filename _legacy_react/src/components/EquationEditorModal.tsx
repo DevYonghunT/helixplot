@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Check } from 'lucide-react';
-import { MathLiveInput } from './MathLiveInput';
+import { MathLiveInput, type MathLiveInputHandle } from "./MathLiveInput";
 import 'katex/dist/katex.min.css';
 
 interface EquationEditorModalProps {
@@ -30,6 +30,7 @@ const QUICK_SYMBOLS = [
 export function EquationEditorModal({ open, initialLatex, onClose, onApply }: EquationEditorModalProps) {
     const dockRef = useRef<HTMLDivElement>(null);
     const [dockHeight, setDockHeight] = useState(280); // Default guess
+    const mfRef = useRef<MathLiveInputHandle>(null);
 
     // Use Portal? Only if open
     if (!open) return null;
@@ -42,21 +43,23 @@ export function EquationEditorModal({ open, initialLatex, onClose, onApply }: Eq
             dockRef={dockRef}
             setDockHeight={setDockHeight}
             dockHeight={dockHeight}
+            mfRef={mfRef}
         />,
         document.body
     );
 }
 
-// Extracted Content Component for Portal context 
+// Extracted Content Component for Portal context
 function EquationEditorContent({
-    initialLatex, onClose, onApply, dockRef, setDockHeight, dockHeight
+    initialLatex, onClose, onApply, dockRef, setDockHeight, dockHeight, mfRef
 }: {
     initialLatex: string,
     onClose: () => void,
     onApply: (l: string) => void,
     dockRef: React.RefObject<HTMLDivElement | null>,
     setDockHeight: (h: number) => void,
-    dockHeight: number
+    dockHeight: number,
+    mfRef: React.MutableRefObject<MathLiveInputHandle | null>
 }) {
     const [draftLatex, setDraftLatex] = useState(initialLatex);
 
@@ -85,11 +88,7 @@ function EquationEditorContent({
 
     // Handle QuickBar Insert
     const handleQuickInsert = (template: string) => {
-        // @ts-ignore
-        const mf = document.activeElement as any;
-        if (mf && mf.tagName === 'MATH-FIELD') {
-            mf.executeCommand(['insert', template, { format: 'latex' }]);
-        }
+        mfRef.current?.insertLatex(template);
     };
 
     return (
@@ -116,13 +115,23 @@ function EquationEditorContent({
                 >
                     {/* Input Card */}
                     <div className="eqm-card min-h-[120px] flex items-center justify-center mb-6 relative">
-                        <MathLiveInput
-                            valueLatex={draftLatex}
-                            onChangeLatex={setDraftLatex}
-                            dockRef={dockRef}
-                            autoFocus={true}
-                            onFocused={() => { }}
-                        />
+                        {/* Wrapper for click gesture focus */}
+                        <div
+                            className="w-full h-full"
+                            onPointerDown={() => {
+                                // Ensure focus on tap anywhere in the card
+                                requestAnimationFrame(() => mfRef.current?.focus());
+                            }}
+                        >
+                            <MathLiveInput
+                                ref={mfRef}
+                                valueLatex={draftLatex}
+                                onChangeLatex={setDraftLatex}
+                                dockRef={dockRef}
+                                autoFocus={true}
+                                onFocused={() => { }}
+                            />
+                        </div>
                     </div>
 
                     <div className="text-center text-xs text-slate-400 mt-4">
@@ -137,7 +146,10 @@ function EquationEditorContent({
                         {QUICK_SYMBOLS.map((s, i) => (
                             <button
                                 key={i}
-                                onClick={() => handleQuickInsert(s.template)}
+                                onPointerDown={(e) => {
+                                    e.preventDefault();
+                                    handleQuickInsert(s.template);
+                                }}
                                 className="h-10 min-w-[50px] px-3 rounded-xl bg-white border border-slate-200 text-sm font-medium hover:bg-slate-50 active:bg-[var(--accent)] active:text-white transition-all shrink-0 flex items-center justify-center font-mono shadow-sm mx-[2px]"
                             >
                                 {s.label}
@@ -146,7 +158,7 @@ function EquationEditorContent({
                     </div>
 
                     {/* MathLive Keyboard Container */}
-                    <div className="eqm-kbd" id="mathlive-keyboard-container" style={{ minHeight: '200px' }}>
+                    <div className="eqm-kbd" id="mathlive-keyboard-container">
                         {/* MathLive will portal its keyboard here */}
                     </div>
                 </div>
