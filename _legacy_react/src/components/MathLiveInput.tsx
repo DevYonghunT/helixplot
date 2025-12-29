@@ -54,6 +54,33 @@ export const MathLiveInput = forwardRef<MathLiveInputHandle, MathLiveInputProps>
         // Apply basic settings
         // @ts-ignore
         mf.smartMode = true;
+        // @ts-ignore
+        mf.mathVirtualKeyboardPolicy = 'manual';
+
+        const applyMultilineStyles = () => {
+            const shadow = mf.shadowRoot;
+            if (!shadow) return;
+
+            const container = shadow.querySelector('.ML__container') as HTMLElement | null;
+            const content = shadow.querySelector('.ML__content') as HTMLElement | null;
+
+            if (container) {
+                container.style.alignItems = 'flex-start';
+                container.style.flexWrap = 'wrap';
+            }
+
+            if (content) {
+                content.style.flexWrap = 'wrap';
+                content.style.whiteSpace = 'normal';
+                content.style.overflow = 'visible';
+            }
+        };
+
+        applyMultilineStyles();
+        const observer = new MutationObserver(() => applyMultilineStyles());
+        if (mf.shadowRoot) {
+            observer.observe(mf.shadowRoot, { childList: true, subtree: true });
+        }
 
         const handleInput = (e: Event) => {
             const val = (e.target as MathfieldElement).value;
@@ -69,7 +96,7 @@ export const MathLiveInput = forwardRef<MathLiveInputHandle, MathLiveInputProps>
                 window.mathVirtualKeyboard.container = dock;
             }
             // @ts-ignore
-            if (!readOnly) window.mathVirtualKeyboard.show();
+            if (!readOnly) window.mathVirtualKeyboard.show({ animate: false });
 
             if (onFocused) onFocused();
         };
@@ -80,6 +107,7 @@ export const MathLiveInput = forwardRef<MathLiveInputHandle, MathLiveInputProps>
         return () => {
             mf.removeEventListener('input', handleInput);
             mf.removeEventListener('focus', handleFocus);
+            observer.disconnect();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [onChangeLatex, readOnly]); // dockRef removed from dependency
@@ -91,6 +119,19 @@ export const MathLiveInput = forwardRef<MathLiveInputHandle, MathLiveInputProps>
             mf.value = valueLatex;
         }
     }, [valueLatex]);
+
+    useEffect(() => {
+        if (!dockRef?.current) return;
+        // @ts-ignore
+        const keyboard = window.mathVirtualKeyboard;
+        if (!keyboard) return;
+        // @ts-ignore
+        keyboard.container = dockRef.current;
+        keyboard.connect?.();
+        if (!readOnly) {
+            keyboard.show({ animate: false });
+        }
+    }, [dockRef, readOnly]);
 
     // Autofocus
     useEffect(() => {
@@ -112,7 +153,9 @@ export const MathLiveInput = forwardRef<MathLiveInputHandle, MathLiveInputProps>
                 outline: 'none',
                 border: 'none',
                 background: 'transparent',
-                display: 'block'
+                display: 'block',
+                height: 'auto',
+                lineHeight: '1.4'
             }}
             read-only={readOnly ? true : undefined}
         />

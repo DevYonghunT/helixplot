@@ -114,7 +114,7 @@ function EquationEditorContent({
                     style={{ paddingBottom: `calc(${dockHeight}px + env(safe-area-inset-bottom) + 16px)` }}
                 >
                     {/* Input Card */}
-                    <div className="eqm-card min-h-[120px] flex items-center justify-center mb-6 relative">
+                    <div className="eqm-card min-h-[120px] flex items-start mb-6 relative">
                         {/* Wrapper for click gesture focus */}
                         <div
                             className="w-full h-full"
@@ -140,7 +140,13 @@ function EquationEditorContent({
                 </div>
 
                 {/* Dock Area */}
-                <div className="eqm-dock" ref={dockRef}>
+                <div
+                    className="eqm-dock"
+                    ref={dockRef}
+                    onPointerDownCapture={() => {
+                        requestAnimationFrame(() => mfRef.current?.focus());
+                    }}
+                >
                     {/* QuickBar */}
                     <div className="eqm-bar">
                         {QUICK_SYMBOLS.map((s, i) => (
