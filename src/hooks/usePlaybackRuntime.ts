@@ -1,10 +1,11 @@
-import { useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback, useState } from "react";
 
 export type PlaybackRuntime = {
     tRef: React.MutableRefObject<number>;
     playingRef: React.MutableRefObject<boolean>;
     speedRef: React.MutableRefObject<number>;
     loopTRef: React.MutableRefObject<number | null>;
+    isPlaying: boolean;
     setPlaying: (v: boolean) => void;
     setSpeed: (v: number) => void;
     setLoopT: (v: number | null) => void;
@@ -18,8 +19,11 @@ export function usePlaybackRuntime(): PlaybackRuntime {
     const speedRef = useRef(1);
     const loopTRef = useRef<number | null>(null);
 
+    const [isPlaying, setIsPlaying] = useState(false);
+
     const setPlaying = useCallback((v: boolean) => {
         playingRef.current = v;
+        setIsPlaying(v);
     }, []);
 
     const setSpeed = useCallback((v: number) => {
@@ -61,10 +65,11 @@ export function usePlaybackRuntime(): PlaybackRuntime {
         playingRef,
         speedRef,
         loopTRef,
+        isPlaying,
         setPlaying,
         setSpeed,
         setLoopT,
         seek01,
         step
-    }), [setPlaying, setSpeed, setLoopT, seek01, step]);
+    }), [isPlaying, setPlaying, setSpeed, setLoopT, seek01, step]);
 }

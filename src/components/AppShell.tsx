@@ -14,7 +14,7 @@ export function AppShell({
     return (
         <div className="h-dvh flex flex-col bg-[var(--bg)] text-[var(--text)] overflow-hidden">
             {/* Top Bar with Safe Area */}
-            <div className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur pt-[max(env(safe-area-inset-top),12px)] shrink-0">
+            <div className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur pt-[env(safe-area-inset-top)] shrink-0">
                 {topbar}
             </div>
 

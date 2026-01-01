@@ -48,6 +48,14 @@ math-field::part(controls) {
   /* Ensure it stays in dock */
 }
 
+/* Force static positioning for parked keyboard */
+#mathlive-keyboard-container .ML__keyboard {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 /* --- Equation Editor Modal Commercial Layout --- */
 
 /* Overlay */
@@ -104,14 +112,22 @@ math-field::part(controls) {
   border-radius: 18px;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
   padding: 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.eqm-card math-field {
+  min-width: 100%;
+  width: max-content;
+  display: block;
 }
 
 /* Dock area */
 .eqm-dock {
   position: absolute;
   left: 0;
-  right: 0;
-  bottom: 0;
+  right: 10;
+  bottom: 100;
   padding-bottom: env(safe-area-inset-bottom);
   background: rgba(247, 248, 251, 0.92);
   backdrop-filter: blur(10px);
@@ -130,5 +146,6 @@ math-field::part(controls) {
 
 /* Keyboard container within dock */
 .eqm-kbd {
-  min-height: 200px;
+  min-height: 260px;
+  padding: 8px 12px 12px;
 }

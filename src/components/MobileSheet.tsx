@@ -51,6 +51,7 @@ export function MobileSheet({
                 style={{
                     maxHeight: "85dvh" // Increased height to accommodate keyboard
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
             >
                 {/* Grabber */}
                 <div className="pt-2 pb-1 flex justify-center shrink-0" onClick={() => setOpen(!open)}>

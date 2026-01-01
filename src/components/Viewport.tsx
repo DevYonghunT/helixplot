@@ -61,7 +61,13 @@ const ProjectionPlane = React.forwardRef<THREE.Mesh, {
 const SceneContent = ({
     data, mode, type, showDiagramElements = false, themes, playbackRt, config, driveClock
 }: ViewportProps & { themes: any }) => {
-    const { camera, size } = useThree();
+    const { camera, size, invalidate } = useThree();
+
+    // Invalidate on data/config change
+    useEffect(() => {
+        invalidate();
+    }, [data, config, mode, themes, size, invalidate]);
+
     const controlsRef = useRef<any>(null);
 
     const [fitReady, setFitReady] = useState(false);
@@ -390,7 +396,11 @@ export const Viewport: React.FC<ViewportProps> = (props) => {
                 {bgLabel}
             </div>
 
-            <Canvas key={`plane-${props.type}`} style={{ touchAction: 'none' }}>
+            <Canvas
+                key={`plane-${props.type}`}
+                style={{ touchAction: 'none' }}
+                frameloop={props.playbackRt?.isPlaying ? 'always' : 'demand'}
+            >
                 <SceneContent {...props} themes={themes} />
             </Canvas>
         </div>

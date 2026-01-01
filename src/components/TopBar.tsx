@@ -32,7 +32,7 @@ export function TopBar({
     const categories: PresetCategory[] = ["수학", "물리학", "화학", "생명과학", "지구과학"];
 
     return (
-        <div className="mx-auto max-w-[1200px] px-3 pb-2 pt-[max(env(safe-area-inset-top),12px)] flex flex-col gap-2">
+        <div className="mx-auto max-w-[1200px] px-3 pb-2 pt-2 flex flex-col gap-2">
             {/* Row 1: Title + Dropdown */}
             <div className="flex items-center gap-3 w-full">
                 <div className="font-semibold tracking-tight shrink-0">HelixPlot</div>

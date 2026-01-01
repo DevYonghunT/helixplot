@@ -4,6 +4,12 @@ const config: CapacitorConfig = {
     appId: 'com.yonghun.helixplot',
     appName: 'HelixPlot',
     webDir: 'dist',
+    plugins: {
+        Keyboard: {
+            resize: 'body',
+            resizeOnFullScreen: true,
+        },
+    },
 
 };
 

@@ -92,32 +92,43 @@ function EquationEditorContent({
     };
 
     return (
-        <div className="eqm-overlay">
-            <div className="eqm-sheet">
+        <div className="fixed inset-0 z-[9999]">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm animate-in fade-in duration-300"
+                onClick={onClose}
+            />
+
+            {/* Sheet */}
+            <div className="absolute inset-0 flex flex-col h-[100dvh] bg-white/90 backdrop-blur-xl shadow-2xl animate-in slide-in-from-bottom duration-300 ease-out pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+
                 {/* Header */}
-                <div className="eqm-header shrink-0 border-b border-[var(--border)] bg-white">
-                    <button onClick={onClose} className="eqm-header-btn text-[var(--muted)] hover:bg-slate-100">
+                <div className="shrink-0 relative px-4 h-14 flex items-center justify-between border-b border-black/5 bg-white/50 backdrop-blur-md">
+                    {/* Sheet Handle */}
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200/80 rounded-full" />
+
+                    <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100/50 transition-colors mt-2">
                         <X size={24} />
                     </button>
-                    <div className="font-bold text-lg text-slate-800">Equation</div>
+                    <div className="font-semibold text-lg text-slate-800 mt-2">Equation</div>
                     <button
                         onClick={() => onApply(draftLatex)}
-                        className="eqm-header-btn text-[var(--accent)] hover:bg-[var(--accent-light)]"
+                        className="w-10 h-10 flex items-center justify-center rounded-full text-indigo-600 hover:bg-indigo-50/50 transition-colors mt-2"
                     >
-                        <Check size={28} strokeWidth={3} />
+                        <Check size={26} strokeWidth={2.5} />
                     </button>
                 </div>
 
                 {/* Body Scroll */}
                 <div
-                    className="eqm-body"
-                    style={{ paddingBottom: `calc(${dockHeight}px + env(safe-area-inset-bottom) + 16px)` }}
+                    className="flex-1 overflow-y-auto px-4 py-6"
+                    style={{ paddingBottom: `calc(${dockHeight}px + env(safe-area-inset-bottom) + 24px)` }}
                 >
                     {/* Input Card */}
-                    <div className="eqm-card min-h-[120px] flex items-start mb-6 relative">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 min-h-[140px] relative">
                         {/* Wrapper for click gesture focus */}
                         <div
-                            className="w-full h-full"
+                            className="w-full"
                             onPointerDown={() => {
                                 // Ensure focus on tap anywhere in the card
                                 mfRef.current?.focus();
@@ -134,21 +145,21 @@ function EquationEditorContent({
                         </div>
                     </div>
 
-                    <div className="text-center text-xs text-slate-400 mt-4">
+                    <div className="text-center text-xs font-medium text-slate-400 mt-6 tracking-wide uppercase opacity-70">
                         Use the keyboard below to edit
                     </div>
                 </div>
 
                 {/* Dock Area */}
                 <div
-                    className="eqm-dock"
+                    className="absolute left-0 right-0 bottom-5 z-50 bg-slate-50/95 backdrop-blur-xl border-t border-slate-200/50 pb-[env(safe-area-inset-bottom)]"
                     ref={dockRef}
                     onPointerDownCapture={() => {
                         mfRef.current?.focus();
                     }}
                 >
                     {/* QuickBar */}
-                    <div className="eqm-bar">
+                    <div className="flex items-center gap-2 px-3 py-2.5 overflow-x-auto [&::-webkit-scrollbar]:hidden touch-pan-x">
                         {QUICK_SYMBOLS.map((s, i) => (
                             <button
                                 key={i}
@@ -156,7 +167,7 @@ function EquationEditorContent({
                                     e.preventDefault();
                                     handleQuickInsert(s.template);
                                 }}
-                                className="h-10 min-w-[50px] px-3 rounded-xl bg-white border border-slate-200 text-sm font-medium hover:bg-slate-50 active:bg-[var(--accent)] active:text-white transition-all shrink-0 flex items-center justify-center font-mono shadow-sm mx-[2px]"
+                                className="h-10 min-w-[3.5rem] px-0 rounded-full bg-slate-100 text-slate-700 text-[15px] font-medium transition-all active:scale-95 active:bg-indigo-100 active:text-indigo-600 flex items-center justify-center font-mono shrink-0 shadow-sm border border-slate-200/50"
                             >
                                 {s.label}
                             </button>
@@ -164,7 +175,7 @@ function EquationEditorContent({
                     </div>
 
                     {/* MathLive Keyboard Container */}
-                    <div className="eqm-kbd" id="mathlive-keyboard-container">
+                    <div className="w-full" id="mathlive-keyboard-container">
                         {/* MathLive will portal its keyboard here */}
                     </div>
                 </div>
