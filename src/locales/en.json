@@ -1,0 +1,37 @@
+{
+    "app": {
+        "title": "HelixPlot",
+        "equation": "Equation",
+        "code": "Raw Code",
+        "settings": "Settings",
+        "cancel": "Cancel",
+        "apply": "Apply",
+        "presets": "Presets",
+        "view_mode": "View Mode",
+        "theme": "Theme"
+    },
+    "topbar": {
+        "preset_tooltip": "Select Preset",
+        "theme_tooltip": "Change Theme",
+        "view_mode_tooltip": "Toggle View Mode",
+        "settings_tooltip": "Open Settings"
+    },
+    "editor": {
+        "placeholder": "Enter parametric equations...",
+        "helper_text": "Use the keyboard below to edit",
+        "open_editor": "Open Equation Editor",
+        "input_placeholder": "Define your function here\nx(t) = cos(10*t)\n..."
+    },
+    "settings": {
+        "appearance": "Appearance",
+        "language": "Language",
+        "dark_mode": "Dark Mode",
+        "light_mode": "Light Mode",
+        "theme_options": {
+            "diagram": "Diagram (Default)",
+            "modern": "Modern (Dark)"
+        },
+        "reset_theme": "Reset Defaults",
+        "recent_colors": "Presets"
+    }
+}

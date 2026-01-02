@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Check } from 'lucide-react';
 import { MathLiveInput, type MathLiveInputHandle } from "./MathLiveInput";
+import { useTranslation } from 'react-i18next';
 import 'katex/dist/katex.min.css';
 
 interface EquationEditorModalProps {
@@ -61,6 +62,7 @@ function EquationEditorContent({
     dockHeight: number,
     mfRef: React.MutableRefObject<MathLiveInputHandle | null>
 }) {
+    const { t } = useTranslation();
     const [draftLatex, setDraftLatex] = useState(initialLatex);
 
     // Sync draft with prop if it changes (e.g. re-opening)
@@ -107,13 +109,14 @@ function EquationEditorContent({
                     {/* Sheet Handle */}
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200/80 rounded-full" />
 
-                    <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100/50 transition-colors mt-2">
+                    <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100/50 transition-colors mt-2" aria-label={t('app.cancel')}>
                         <X size={24} />
                     </button>
-                    <div className="font-semibold text-lg text-slate-800 mt-2">Equation</div>
+                    <div className="font-semibold text-lg text-slate-800 mt-2">{t('app.equation')}</div>
                     <button
                         onClick={() => onApply(draftLatex)}
                         className="w-10 h-10 flex items-center justify-center rounded-full text-indigo-600 hover:bg-indigo-50/50 transition-colors mt-2"
+                        aria-label={t('app.apply')}
                     >
                         <Check size={26} strokeWidth={2.5} />
                     </button>
@@ -146,7 +149,7 @@ function EquationEditorContent({
                     </div>
 
                     <div className="text-center text-xs font-medium text-slate-400 mt-6 tracking-wide uppercase opacity-70">
-                        Use the keyboard below to edit
+                        {t('editor.helper_text')}
                     </div>
                 </div>
 

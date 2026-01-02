@@ -1,5 +1,7 @@
+import React, { useState } from 'react';
 import { Wheel } from '@uiw/react-color';
 import type { PlaneTheme, PlaneColor } from '../hooks/usePlaneTheme';
+import { useTranslation } from 'react-i18next';
 
 function AlphaSlider({ alpha, onChange }: { alpha: number, onChange: (v: number) => void }) {
     return (
@@ -51,6 +53,8 @@ function PlaneSetting({
     recents?: string[],
     onAddRecent?: (hex: string) => void
 }) {
+    const { t } = useTranslation();
+
     return (
         <div className="flex flex-col items-center p-3 rounded-2xl bg-[var(--bg)] border border-[var(--border)]">
             <div className="text-sm font-bold mb-3 w-full text-center border-b border-[var(--border)] pb-2">{label}</div>
@@ -82,7 +86,7 @@ function PlaneSetting({
             {/* Recents / Presets */}
             {recents && onAddRecent && (
                 <div className="w-full mt-4">
-                    <div className="text-[10px] text-[var(--muted)] uppercase font-semibold mb-2">Presets</div>
+                    <div className="text-[10px] text-[var(--muted)] uppercase font-semibold mb-2">{t('settings.recent_colors')}</div>
                     <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                         {recents.slice(0, 7).map(hex => (
                             <button
@@ -107,6 +111,49 @@ function PlaneSetting({
     );
 }
 
+
+function SelectTrigger({ className, children, onClick }: { className?: string, children: React.ReactNode, onClick?: () => void }) {
+    return (
+        <button
+            className={`flex h-10 w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+            onClick={onClick}
+        >
+            {children}
+            <span className="opacity-50">▼</span>
+        </button>
+    )
+}
+
+function SelectValue({ placeholder, children }: { placeholder?: string, children?: React.ReactNode }) {
+    return (
+        <span className="block truncate">{children || placeholder}</span>
+    )
+}
+
+function LanguageSelect({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+    const [open, setOpen] = useState(false);
+
+    const getLabel = (v: string) => {
+        if (v === 'en') return 'English (United States)';
+        if (v === 'ko') return '한국어 (대한민국)';
+        return v;
+    };
+
+    return (
+        <div className="relative">
+            <SelectTrigger className="w-full [&>span]:truncate" onClick={() => setOpen(!open)}>
+                <SelectValue placeholder={getLabel(value)} />
+            </SelectTrigger>
+            {open && (
+                <div className="absolute top-full left-0 w-full mt-1 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                    <button onClick={() => { onChange('en'); setOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5">English (United States)</button>
+                    <button onClick={() => { onChange('ko'); setOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5">한국어 (대한민국)</button>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function SettingsModal({
     theme,
     updatePlane,
@@ -122,36 +169,54 @@ export function SettingsModal({
     addRecent?: (hex: string) => void,
     onReset?: () => void
 }) {
+    const { t, i18n } = useTranslation();
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
             <div className="w-full max-w-sm sm:max-w-2xl bg-[var(--card)] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--bg)]">
-                    <h2 className="font-bold text-lg">Visual Settings</h2>
+                    <h2 className="font-bold text-lg">{t('app.settings')}</h2>
                     <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 grid place-items-center">✕</button>
                 </div>
 
-                <div className="p-4 overflow-y-auto min-h-0 flex-1 flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <PlaneSetting
-                        label="XY Plane (Floor)"
-                        color={theme.xy}
-                        onChange={(c) => updatePlane('xy', c)}
-                        recents={recents}
-                        onAddRecent={addRecent}
-                    />
-                    <PlaneSetting
-                        label="XZ Plane (Side)"
-                        color={theme.xz}
-                        onChange={(c) => updatePlane('xz', c)}
-                        recents={recents}
-                        onAddRecent={addRecent}
-                    />
-                    <PlaneSetting
-                        label="YZ Plane (Front)"
-                        color={theme.yz}
-                        onChange={(c) => updatePlane('yz', c)}
-                        recents={recents}
-                        onAddRecent={addRecent}
-                    />
+                <div className="p-4 overflow-y-auto min-h-0 flex-1 flex flex-col gap-6">
+
+                    {/* Language Settings */}
+                    <div>
+                        <div className="text-sm font-bold mb-2 text-[var(--muted)] uppercase">{t('settings.language')}</div>
+                        <LanguageSelect
+                            value={i18n.language}
+                            onChange={(lang) => i18n.changeLanguage(lang)}
+                        />
+                    </div>
+
+
+                    <div>
+                        <div className="text-sm font-bold mb-3 text-[var(--muted)] uppercase">{t('settings.appearance')}</div>
+                        <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <PlaneSetting
+                                label="XY Plane (Floor)"
+                                color={theme.xy}
+                                onChange={(c) => updatePlane('xy', c)}
+                                recents={recents}
+                                onAddRecent={addRecent}
+                            />
+                            <PlaneSetting
+                                label="XZ Plane (Side)"
+                                color={theme.xz}
+                                onChange={(c) => updatePlane('xz', c)}
+                                recents={recents}
+                                onAddRecent={addRecent}
+                            />
+                            <PlaneSetting
+                                label="YZ Plane (Front)"
+                                color={theme.yz}
+                                onChange={(c) => updatePlane('yz', c)}
+                                recents={recents}
+                                onAddRecent={addRecent}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="p-4 border-t border-[var(--border)] bg-[var(--bg)] flex justify-between items-center">
@@ -159,13 +224,13 @@ export function SettingsModal({
                         onClick={onReset}
                         className="text-xs text-[var(--muted)] hover:text-[var(--accent-error)] px-2 py-1 underline decoration-dotted"
                     >
-                        Reset Defaults
+                        {t('settings.reset_theme')}
                     </button>
                     <button
                         onClick={onClose}
                         className="px-6 py-2 bg-[var(--accent)] text-white font-semibold rounded-xl active:scale-95 transition-transform shadow-lg shadow-[var(--accent)]/30"
                     >
-                        Done
+                        {t('app.apply')}
                     </button>
                 </div>
             </div>

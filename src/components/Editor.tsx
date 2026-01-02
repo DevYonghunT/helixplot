@@ -1,6 +1,7 @@
 import { forwardRef, useState } from 'react';
 import clsx from 'clsx';
 import { EquationEditor } from './EquationEditor';
+import { useTranslation } from 'react-i18next';
 
 interface EditorProps {
     value: string;
@@ -19,11 +20,11 @@ export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
     latex, compiledExpr, exprError,
     onOpenEquationEditor
 }, ref) => {
+    const { t } = useTranslation();
     const [mode, setMode] = useState<'code' | 'eq'>('eq'); // Default to Eq mode as requested for "Codecogs UX"
 
     return (
         <div className="flex flex-col h-full gap-2 transition-all">
-            {/* Mode Switch */}
             {/* Mode Switch (Segmented Control) */}
             <div className="flex bg-[var(--bg-panel)] p-1 rounded-full border border-[var(--border)] self-start h-10 w-full sm:w-auto relative">
                 <button
@@ -35,7 +36,7 @@ export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
                             : "text-[var(--text-muted)] hover:text-[var(--text)]"
                     )}
                 >
-                    Equation
+                    {t('app.equation')}
                 </button>
                 <button
                     onClick={() => setMode('code')}
@@ -46,7 +47,7 @@ export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
                             : "text-[var(--text-muted)] hover:text-[var(--text)]"
                     )}
                 >
-                    Raw Code
+                    {t('app.code')}
                 </button>
             </div>
 
@@ -57,7 +58,7 @@ export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
                     spellCheck={false}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    placeholder="# Define your function here\nx(t) = cos(10*t)\n..."
+                    placeholder={t('editor.input_placeholder')}
                 />
             ) : (
                 <div className="flex-1 w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl overflow-hidden min-h-0">
