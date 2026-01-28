@@ -70,11 +70,18 @@ function EquationEditorContent({
         setDraftLatex(initialLatex);
     }, [initialLatex]);
 
-    // Lock body scroll
+    // Lock body scroll & handle Escape
     useEffect(() => {
         document.body.style.overflow = 'hidden';
-        return () => { document.body.style.overflow = ''; }
-    }, []);
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', handleKey);
+        return () => {
+            document.body.style.overflow = '';
+            document.removeEventListener('keydown', handleKey);
+        };
+    }, [onClose]);
 
     // Measure Dock Height
     useEffect(() => {
@@ -97,25 +104,25 @@ function EquationEditorContent({
         <div className="fixed inset-0 z-[9999]">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm animate-in fade-in duration-300"
+                className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-in fade-in duration-300"
                 onClick={onClose}
             />
 
             {/* Sheet */}
-            <div className="absolute inset-0 flex flex-col h-[100dvh] bg-white/90 backdrop-blur-xl shadow-2xl animate-in slide-in-from-bottom duration-300 ease-out pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            <div className="absolute inset-0 flex flex-col h-[100dvh] bg-[var(--bg)]/95 backdrop-blur-xl shadow-2xl animate-in slide-in-from-bottom duration-300 ease-out pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
 
                 {/* Header */}
-                <div className="shrink-0 relative px-4 h-14 flex items-center justify-between border-b border-black/5 bg-white/50 backdrop-blur-md">
+                <div className="shrink-0 relative px-4 h-14 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-elevated)] backdrop-blur-md">
                     {/* Sheet Handle */}
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200/80 rounded-full" />
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 rounded-full" style={{ background: 'var(--handle-color)' }} />
 
-                    <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100/50 transition-colors mt-2" aria-label={t('app.cancel')}>
+                    <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--muted)] hover:bg-[var(--bg-button)] transition-colors mt-2" aria-label={t('app.cancel')}>
                         <X size={24} />
                     </button>
-                    <div className="font-semibold text-lg text-slate-800 mt-2">{t('app.equation')}</div>
+                    <div className="font-semibold text-lg text-[var(--text-secondary)] mt-2">{t('app.equation')}</div>
                     <button
                         onClick={() => onApply(draftLatex)}
-                        className="w-10 h-10 flex items-center justify-center rounded-full text-indigo-600 hover:bg-indigo-50/50 transition-colors mt-2"
+                        className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--text-accent)] hover:bg-[var(--bg-button-active)] transition-colors mt-2"
                         aria-label={t('app.apply')}
                     >
                         <Check size={26} strokeWidth={2.5} />
@@ -128,7 +135,7 @@ function EquationEditorContent({
                     style={{ paddingBottom: `calc(${dockHeight}px + env(safe-area-inset-bottom) + 24px)` }}
                 >
                     {/* Input Card */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 min-h-[140px] relative">
+                    <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] shadow-sm p-4 min-h-[140px] relative">
                         {/* Wrapper for click gesture focus */}
                         <div
                             className="w-full"
@@ -148,14 +155,14 @@ function EquationEditorContent({
                         </div>
                     </div>
 
-                    <div className="text-center text-xs font-medium text-slate-400 mt-6 tracking-wide uppercase opacity-70">
+                    <div className="text-center text-xs font-medium text-[var(--text-tertiary)] mt-6 tracking-wide uppercase opacity-70">
                         {t('editor.helper_text')}
                     </div>
                 </div>
 
                 {/* Dock Area */}
                 <div
-                    className="absolute left-0 right-0 bottom-5 z-50 bg-slate-50/95 backdrop-blur-xl border-t border-slate-200/50 pb-[env(safe-area-inset-bottom)]"
+                    className="absolute left-0 right-0 bottom-5 z-50 bg-[var(--bg-elevated)] backdrop-blur-xl border-t border-[var(--border)] pb-[env(safe-area-inset-bottom)]"
                     ref={dockRef}
                     onPointerDownCapture={() => {
                         mfRef.current?.focus();
@@ -170,7 +177,7 @@ function EquationEditorContent({
                                     e.preventDefault();
                                     handleQuickInsert(s.template);
                                 }}
-                                className="h-10 min-w-[3.5rem] px-0 rounded-full bg-slate-100 text-slate-700 text-[15px] font-medium transition-all active:scale-95 active:bg-indigo-100 active:text-indigo-600 flex items-center justify-center font-mono shrink-0 shadow-sm border border-slate-200/50"
+                                className="h-10 min-w-[3.5rem] px-0 rounded-full bg-[var(--bg-button)] text-[var(--text)] text-[15px] font-medium transition-all active:scale-95 active:bg-[var(--bg-button-active)] active:text-[var(--text-accent)] flex items-center justify-center font-mono shrink-0 shadow-sm border border-[var(--border)]"
                             >
                                 {s.label}
                             </button>

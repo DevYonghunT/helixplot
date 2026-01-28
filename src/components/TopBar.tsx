@@ -22,6 +22,7 @@ export function TopBar({
     viewMode,
     onToggleViewMode,
     onSettings,
+    onExport,
 }: {
     preset: string;
     onPreset: (v: string) => void;
@@ -30,6 +31,7 @@ export function TopBar({
     viewMode: "diagram" | "quad";
     onToggleViewMode: () => void;
     onSettings: () => void;
+    onExport?: () => void;
 }) {
     const { t } = useTranslation();
     const categories: PresetCategory[] = ["수학", "물리학", "화학", "생명과학", "지구과학"];
@@ -64,17 +66,18 @@ export function TopBar({
                     title={t('topbar.view_mode_tooltip')}
                     className="h-9 flex-1 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm hover:opacity-90 whitespace-nowrap"
                 >
-                    {viewMode === "diagram" ? "Diagram View" : "Quad View"}
+                    {viewMode === "diagram" ? t('topbar.diagram_view') : t('topbar.quad_view')}
                 </button>
 
                 <button
                     onClick={onToggleTheme}
                     title={t('topbar.theme_tooltip')}
-                    className="h-9 w-20 shrink-0 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm hover:opacity-90"
+                    className="h-9 shrink-0 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm hover:opacity-90 whitespace-nowrap"
                 >
                     {theme === "diagram" ? t('settings.light_mode') : t('settings.dark_mode')}
                 </button>
 
+                {onExport && <IconButton onClick={onExport} title={t('export.title')}>📤</IconButton>}
                 <IconButton onClick={onSettings} title={t('topbar.settings_tooltip')}>⚙️</IconButton>
             </div>
         </div>

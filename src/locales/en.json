@@ -14,7 +14,9 @@
         "preset_tooltip": "Select Preset",
         "theme_tooltip": "Change Theme",
         "view_mode_tooltip": "Toggle View Mode",
-        "settings_tooltip": "Open Settings"
+        "settings_tooltip": "Open Settings",
+        "diagram_view": "Diagram View",
+        "quad_view": "Quad View"
     },
     "editor": {
         "placeholder": "Enter parametric equations...",
@@ -32,6 +34,70 @@
             "modern": "Modern (Dark)"
         },
         "reset_theme": "Reset Defaults",
-        "recent_colors": "Presets"
+        "recent_colors": "Presets",
+        "color": "Color",
+        "opacity": "Opacity",
+        "save_current": "Save Current",
+        "xy_plane": "XY Plane (Floor)",
+        "xz_plane": "XZ Plane (Side)",
+        "yz_plane": "YZ Plane (Front)"
+    },
+    "mobile": {
+        "playback": "Playback",
+        "input": "Input"
+    },
+    "export": {
+        "title": "Export & Share",
+        "download_png": "Download PNG",
+        "download_png_desc": "Save the current view as an image",
+        "copy_link": "Copy Share Link",
+        "copy_link_desc": "Share this expression via URL",
+        "copy_code": "Copy Code",
+        "copy_code_desc": "Copy the raw expression code",
+        "png_saved": "Image downloaded!",
+        "no_canvas": "No canvas found to capture",
+        "link_copied": "Share link copied!",
+        "code_copied": "Code copied to clipboard!",
+        "copy_failed": "Failed to copy"
+    },
+    "history": {
+        "title": "History",
+        "favorites": "Favorites",
+        "recent": "Recent",
+        "empty": "No saved expressions yet",
+        "empty_favorites": "No favorites yet",
+        "load": "Load",
+        "delete": "Delete",
+        "clear_all": "Clear All",
+        "saved": "Expression saved!",
+        "loaded": "Expression loaded!"
+    },
+    "input": {
+        "render": "Render",
+        "tip": "Tip: Default is Diagram View. Use Quad for precision."
+    },
+    "params": {
+        "title": "Parameters"
+    },
+    "onboarding": {
+        "title": "Welcome to HelixPlot",
+        "skip": "Skip",
+        "prev": "Back",
+        "next": "Next",
+        "start": "Get Started",
+        "step1_title": "Welcome to HelixPlot",
+        "step1_desc": "Visualize parametric curves, complex functions, and 3D surfaces with beautiful interactive graphics.",
+        "step2_title": "Enter Equations",
+        "step2_desc": "Type equations in the editor or use the LaTeX editor for complex expressions. Try f(t) = cos(t) + i*sin(t) to get started.",
+        "step3_title": "Explore Presets & Views",
+        "step3_desc": "Choose from built-in presets like Helix, Rose, or Lissajous. Switch between Diagram and Quad views for different perspectives.",
+        "step4_title": "Animate & Export",
+        "step4_desc": "Use the playback controls to animate your curves over time. Export as PNG or share a link with others."
+    },
+    "error": {
+        "title": "Something went wrong",
+        "message": "An unexpected error occurred in the renderer.",
+        "retry": "Retry",
+        "canvas_error": "3D rendering failed. Please try again."
     }
 }

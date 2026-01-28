@@ -1,11 +1,12 @@
 import React, { useRef, useState } from "react";
 import type { PlaybackRuntime } from "../hooks/usePlaybackRuntime";
 
-function PlaybackButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+function PlaybackButton({ onClick, children, ariaLabel }: { onClick: () => void; children: React.ReactNode; ariaLabel?: string }) {
     return (
         <button
             onClick={onClick}
-            className="h-10 w-10 grid place-items-center rounded-full bg-[var(--accent)] text-white hover:opacity-90 active:scale-95 transition-transform"
+            aria-label={ariaLabel}
+            className="h-10 w-10 grid place-items-center rounded-full bg-[var(--accent)] text-white hover:opacity-90 active:scale-95 transition-transform focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
         >
             {children}
         </button>
@@ -81,7 +82,7 @@ export function PlaybackBar({
     return (
         <div className="mx-auto max-w-[600px] h-16 rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow)] backdrop-blur px-4 flex items-center gap-4 select-none touch-none">
             {/* Play/Pause */}
-            <PlaybackButton onClick={handleToggle}>
+            <PlaybackButton onClick={handleToggle} ariaLabel={playingRef.current ? "Pause" : "Play"}>
                 {playingRef.current ? (
                     <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
                         <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" />
@@ -97,10 +98,22 @@ export function PlaybackBar({
             <div className="flex-1 flex flex-col justify-center gap-1">
                 <div className="flex justify-between text-xs font-mono text-[var(--text-muted)]">
                     <span>{tLabel}</span>
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => handleSpeedChange(Math.max(0.1, speedRef.current - 0.1))} className="hover:text-[var(--foreground)]">-</button>
-                        <span>{speedRef.current.toFixed(1)}x</span>
-                        <button onClick={() => handleSpeedChange(speedRef.current + 0.1)} className="hover:text-[var(--foreground)]">+</button>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => handleSpeedChange(Math.max(0.1, speedRef.current - 0.1))}
+                            className="w-7 h-7 grid place-items-center rounded-full hover:bg-[var(--bg-button)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                            aria-label="Decrease speed"
+                        >
+                            -
+                        </button>
+                        <span className="w-8 text-center">{speedRef.current.toFixed(1)}x</span>
+                        <button
+                            onClick={() => handleSpeedChange(speedRef.current + 0.1)}
+                            className="w-7 h-7 grid place-items-center rounded-full hover:bg-[var(--bg-button)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                            aria-label="Increase speed"
+                        >
+                            +
+                        </button>
                     </div>
                 </div>
 
@@ -109,6 +122,17 @@ export function PlaybackBar({
                     ref={progressBarRef}
                     onPointerDown={handlePointerDown}
                     className="h-2 w-full rounded-full bg-[var(--muted)]/20 cursor-pointer relative overflow-hidden group touch-none"
+                    role="slider"
+                    aria-label="Playback progress"
+                    aria-valuemin={tRange[0]}
+                    aria-valuemax={tRange[1]}
+                    aria-valuenow={displayState.t}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        const step = 0.05;
+                        if (e.key === 'ArrowRight') seek01(Math.min(1, displayState.progress01 + step), tRange[0], tRange[1]);
+                        if (e.key === 'ArrowLeft') seek01(Math.max(0, displayState.progress01 - step), tRange[0], tRange[1]);
+                    }}
                     onPointerMove={(e) => {
                         if (e.buttons > 0) handlePointerDown(e);
                     }}
@@ -125,6 +149,7 @@ export function PlaybackBar({
                 className="bg-transparent text-xs font-bold text-[var(--text-muted)] outline-none text-right w-12"
                 value={speedRef.current}
                 onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+                aria-label="Playback speed"
             >
                 <option value={0.5}>0.5x</option>
                 <option value={1}>1.0x</option>

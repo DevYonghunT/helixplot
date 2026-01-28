@@ -32,7 +32,7 @@ export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
                     className={clsx(
                         "flex-1 sm:flex-none px-6 h-full rounded-full text-sm font-semibold transition-all duration-200 z-10",
                         mode === 'eq'
-                            ? "bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.12)] scale-[1.02]"
+                            ? "bg-[var(--segment-active-bg)] text-[var(--segment-active-text)] shadow-[var(--segment-active-shadow)] scale-[1.02]"
                             : "text-[var(--text-muted)] hover:text-[var(--text)]"
                     )}
                 >
@@ -43,7 +43,7 @@ export const Editor = forwardRef<HTMLTextAreaElement, EditorProps>(({
                     className={clsx(
                         "flex-1 sm:flex-none px-6 h-full rounded-full text-sm font-semibold transition-all duration-200 z-10",
                         mode === 'code'
-                            ? "bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.12)] scale-[1.02]"
+                            ? "bg-[var(--segment-active-bg)] text-[var(--segment-active-text)] shadow-[var(--segment-active-shadow)] scale-[1.02]"
                             : "text-[var(--text-muted)] hover:text-[var(--text)]"
                     )}
                 >

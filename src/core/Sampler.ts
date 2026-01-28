@@ -87,6 +87,8 @@ export class Sampler {
             };
         }
 
+        let lastValid: { x: number, y: number, z: number } | null = null;
+
         for (let i = 0; i < tSamples; i++) {
             const t = tmin + (tmax - tmin) * (i / (tSamples - 1));
             try {
@@ -94,12 +96,14 @@ export class Sampler {
                 if (p && isFinite(p.x) && isFinite(p.y) && isFinite(p.z)) {
                     points.push(p);
                     validity.push(true);
+                    lastValid = p;
                 } else {
-                    points.push({ x: 0, y: 0, z: 0 }); // Placeholder
+                    // Use last valid point or NaN marker to avoid origin spikes
+                    points.push(lastValid ? { ...lastValid } : { x: NaN, y: NaN, z: NaN });
                     validity.push(false);
                 }
             } catch (e) {
-                points.push({ x: 0, y: 0, z: 0 });
+                points.push(lastValid ? { ...lastValid } : { x: NaN, y: NaN, z: NaN });
                 validity.push(false);
             }
         }
@@ -150,6 +154,7 @@ export class Sampler {
             grid.push(row);
         }
 
-        return { points, grid, validity: [] }; // Validity logic for surface TODO
+        const validity = points.map(p => isFinite(p.z));
+        return { points, grid, validity };
     }
 }

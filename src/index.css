@@ -8,6 +8,18 @@
   --border: rgba(99, 102, 241, .18);
   --shadow: 0 10px 30px rgba(17, 24, 39, .08);
   --accent: #6366f1;
+  --bg-surface: #ffffff;
+  --bg-elevated: rgba(248, 250, 252, 0.92);
+  --text-secondary: #1e293b;
+  --text-tertiary: #94a3b8;
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --bg-button: #f1f5f9;
+  --bg-button-active: rgba(99, 102, 241, 0.12);
+  --text-accent: #4f46e5;
+  --handle-color: rgba(203, 213, 225, 0.8);
+  --segment-active-bg: #ffffff;
+  --segment-active-text: #111827;
+  --segment-active-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 :root.theme-modern {
@@ -18,6 +30,18 @@
   --border: rgba(255, 255, 255, .10);
   --shadow: 0 18px 40px rgba(0, 0, 0, .45);
   --accent: #8b5cf6;
+  --bg-surface: rgba(30, 41, 59, 0.9);
+  --bg-elevated: rgba(15, 23, 42, 0.92);
+  --text-secondary: #e2e8f0;
+  --text-tertiary: rgba(148, 163, 184, 0.7);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --bg-button: rgba(255, 255, 255, 0.1);
+  --bg-button-active: rgba(139, 92, 246, 0.2);
+  --text-accent: #a78bfa;
+  --handle-color: rgba(255, 255, 255, 0.2);
+  --segment-active-bg: rgba(255, 255, 255, 0.12);
+  --segment-active-text: #e5e7eb;
+  --segment-active-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 body {
@@ -26,8 +50,19 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
-/* MathLive built-in keyboard toggle 숨김: 커스텀 토글(⌨️)만 사용 */
-/* MathLive built-in keyboard toggle 숨김: 커스텀 토글(⌨️)만 사용 */
+/* Global focus-visible styles for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Disable focus ring for mouse users */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* MathLive built-in keyboard toggle 숨김: 커스텀 토글만 사용 */
 .ML__virtual-keyboard-toggle,
 .ML__keyboard-toggle,
 .ML__menu-toggle {
@@ -107,10 +142,10 @@ math-field::part(controls) {
 
 /* Card */
 .eqm-card {
-  background: #fff;
-  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 18px;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow);
   padding: 14px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -126,12 +161,12 @@ math-field::part(controls) {
 .eqm-dock {
   position: absolute;
   left: 0;
-  right: 10;
-  bottom: 100;
+  right: 0;
+  bottom: 0;
   padding-bottom: env(safe-area-inset-bottom);
-  background: rgba(247, 248, 251, 0.92);
+  background: var(--bg-elevated);
   backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(100, 116, 139, 0.18);
+  border-top: 1px solid var(--border);
   z-index: 50;
 }
 

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
+import { OrbitControls, OrthographicCamera, PerspectiveCamera, Html } from '@react-three/drei';
 import clsx from 'clsx';
 import * as THREE from 'three';
 import type { SampleResult, Mode, RenderConfig } from '../core/types';
 import type { PlaneTheme } from '../hooks/usePlaneTheme';
 import { CurveRenderer, SurfaceRenderer } from './Renderers';
+import { CanvasErrorBoundary } from './ErrorBoundary';
 
 import type { PlaybackRuntime } from '../hooks/usePlaybackRuntime';
 
@@ -57,6 +58,65 @@ const ProjectionPlane = React.forwardRef<THREE.Mesh, {
     </mesh>
 ));
 
+// Axis labels rendered as Html overlays at axis endpoints
+const AxisLabels: React.FC<{ extent: number }> = ({ extent }) => {
+    const half = extent * 0.55;
+    const style: React.CSSProperties = {
+        fontSize: 11,
+        fontWeight: 700,
+        fontFamily: 'system-ui, sans-serif',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        textShadow: '0 1px 3px rgba(0,0,0,0.4)',
+        letterSpacing: 0.5,
+    };
+    return (
+        <>
+            <Html position={[half, 0, 0]} center distanceFactor={extent * 1.2} zIndexRange={[1, 0]}>
+                <span style={{ ...style, color: '#ef4444' }}>X</span>
+            </Html>
+            <Html position={[0, half, 0]} center distanceFactor={extent * 1.2} zIndexRange={[1, 0]}>
+                <span style={{ ...style, color: '#22c55e' }}>Y</span>
+            </Html>
+            <Html position={[0, 0, half]} center distanceFactor={extent * 1.2} zIndexRange={[1, 0]}>
+                <span style={{ ...style, color: '#3b82f6' }}>Z</span>
+            </Html>
+        </>
+    );
+};
+
+// Tick marks along each axis
+const AxisTicks: React.FC<{ extent: number }> = ({ extent }) => {
+    const half = extent * 0.5;
+    const step = extent >= 20 ? 5 : extent >= 6 ? 2 : 1;
+    const ticks: { pos: [number, number, number]; label: string }[] = [];
+
+    for (let v = step; v <= half; v += step) {
+        ticks.push({ pos: [v, 0, 0], label: v.toFixed(v % 1 === 0 ? 0 : 1) });
+        ticks.push({ pos: [-v, 0, 0], label: (-v).toFixed(v % 1 === 0 ? 0 : 1) });
+        ticks.push({ pos: [0, v, 0], label: v.toFixed(v % 1 === 0 ? 0 : 1) });
+        ticks.push({ pos: [0, -v, 0], label: (-v).toFixed(v % 1 === 0 ? 0 : 1) });
+    }
+
+    const style: React.CSSProperties = {
+        fontSize: 9,
+        color: 'var(--muted, rgba(150,150,150,0.7))',
+        fontFamily: 'system-ui, monospace',
+        pointerEvents: 'none',
+        userSelect: 'none',
+    };
+
+    return (
+        <>
+            {ticks.map((t, i) => (
+                <Html key={i} position={t.pos} center distanceFactor={extent * 1.5} zIndexRange={[1, 0]}>
+                    <span style={style}>{t.label}</span>
+                </Html>
+            ))}
+        </>
+    );
+};
+
 // Inner Component to handle Scene Logic with useThree
 const SceneContent = ({
     data, mode, type, showDiagramElements = false, themes, playbackRt, config, driveClock
@@ -71,6 +131,7 @@ const SceneContent = ({
     const controlsRef = useRef<any>(null);
 
     const [fitReady, setFitReady] = useState(false);
+    const [cursorCoords, setCursorCoords] = useState<{ x: number; y: number; z: number } | null>(null);
     const is3D = type === '3d';
 
     // Keep orbit controls responsive even while playback is running
@@ -153,8 +214,10 @@ const SceneContent = ({
         };
     }, [data.revision, data.points]);
 
+    const coordThrottleRef = useRef(0);
+
     // High-Frequency Loop via Playback Runtime
-    useFrame((_, delta) => {
+    useFrame((_state, delta) => {
         if (!playbackRt || !config || !stagedData.points || stagedData.points.length < 2) return;
 
         if (driveClock) {
@@ -184,6 +247,12 @@ const SceneContent = ({
             if (cursorMeshRef.current) {
                 cursorMeshRef.current.position.set(px, py, pz);
                 cursorMeshRef.current.visible = true;
+                // Update coordinate display (throttled: ~5 updates/sec)
+                coordThrottleRef.current += delta;
+                if (coordThrottleRef.current > 0.2) {
+                    coordThrottleRef.current = 0;
+                    setCursorCoords({ x: px, y: py, z: pz });
+                }
             }
 
             if (showDiagramElements && fitReady && is3D) {
@@ -368,6 +437,8 @@ const SceneContent = ({
                             </>
                         )}
                         {fitReady && <axesHelper args={[finalExtent * 0.5]} position={[0, 0, 0]} />}
+                        {fitReady && is3D && <AxisLabels extent={finalExtent} />}
+                        {fitReady && is3D && <AxisTicks extent={finalExtent} />}
                     </group>
                 )}
 
@@ -375,9 +446,54 @@ const SceneContent = ({
                     <sphereGeometry args={[0.08, 32, 32]} />
                     <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.6} />
                 </mesh>
+
+                {/* Coordinate tooltip attached to cursor */}
+                {cursorCoords && cursorMeshRef.current && (
+                    <Html
+                        position={[cursorCoords.x, cursorCoords.y + 0.3, cursorCoords.z]}
+                        center
+                        distanceFactor={finalExtent * 1.2}
+                        zIndexRange={[1, 0]}
+                        style={{ pointerEvents: 'none' }}
+                    >
+                        <div style={{
+                            background: 'rgba(0,0,0,0.75)',
+                            color: '#fff',
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            whiteSpace: 'nowrap',
+                            backdropFilter: 'blur(4px)',
+                        }}>
+                            ({cursorCoords.x.toFixed(2)}, {cursorCoords.y.toFixed(2)}, {cursorCoords.z.toFixed(2)})
+                        </div>
+                    </Html>
+                )}
             </group>
         </>
     );
+};
+
+// Inner helper to reset OrbitControls from Canvas child
+const ResetViewOnDoubleClick: React.FC = () => {
+    const { camera, gl, invalidate } = useThree();
+    useEffect(() => {
+        const handler = () => {
+            if (camera instanceof THREE.PerspectiveCamera) {
+                camera.position.set(8, 6, 12);
+                camera.lookAt(0, 0, 0);
+                camera.updateProjectionMatrix();
+            } else if (camera instanceof THREE.OrthographicCamera) {
+                camera.zoom = 20;
+                camera.updateProjectionMatrix();
+            }
+            invalidate();
+        };
+        gl.domElement.addEventListener('dblclick', handler);
+        return () => gl.domElement.removeEventListener('dblclick', handler);
+    }, [camera, gl, invalidate]);
+    return null;
 };
 
 export const Viewport: React.FC<ViewportProps> = (props) => {
@@ -396,13 +512,16 @@ export const Viewport: React.FC<ViewportProps> = (props) => {
                 {bgLabel}
             </div>
 
-            <Canvas
-                key={`plane-${props.type}`}
-                style={{ touchAction: 'none' }}
-                frameloop={props.playbackRt?.isPlaying ? 'always' : 'demand'}
-            >
-                <SceneContent {...props} themes={themes} />
-            </Canvas>
+            <CanvasErrorBoundary>
+                <Canvas
+                    key={`plane-${props.type}`}
+                    style={{ touchAction: 'none' }}
+                    frameloop={props.playbackRt?.isPlaying ? 'always' : 'demand'}
+                >
+                    <SceneContent {...props} themes={themes} />
+                    <ResetViewOnDoubleClick />
+                </Canvas>
+            </CanvasErrorBoundary>
         </div>
     );
 };

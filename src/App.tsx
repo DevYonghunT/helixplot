@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { TopBar } from "./components/TopBar";
 import { InputPanel } from "./components/InputPanel";
@@ -9,47 +9,84 @@ import { Editor } from "./components/Editor";
 import { Viewport } from "./components/Viewport";
 import { SettingsModal } from "./components/SettingsModal";
 import { EquationEditorModal } from "./components/EquationEditorModal";
+import { ExportModal } from "./components/ExportModal";
+import { ToastContainer } from "./components/Toast";
+import { ParameterSlider } from "./components/ParameterSlider";
+import { AdBanner } from "./components/AdBanner";
+import { Onboarding } from "./components/Onboarding";
+import { SplashScreen } from "./components/SplashScreen";
+import { useInterstitialAd } from "./hooks/useInterstitialAd";
+import { AdService } from "./services/AdService";
 
 import { useHelixState } from "./hooks/useHelixState";
 import { usePlaneTheme } from "./hooks/usePlaneTheme";
 import { useAutoBound } from "./hooks/useAutoBound";
 import { usePlaybackRuntime } from "./hooks/usePlaybackRuntime";
 import { useKeyboardInset } from "./hooks/useKeyboardInset";
+import { useAppStore } from "./store/useAppStore";
+import { useHistoryStore } from "./store/historyStore";
 import { CORE_PRESETS, DEFAULT_PRESET_ID } from "./presets/corePresets";
+import { parseShareURL } from "./utils/export";
 
 export default function App() {
+    const [splashDone, setSplashDone] = useState(false);
     const {
         input, setInput,
         latexInput, updateFromLatex, setLatexInputRaw,
         lastGoodExpr, exprError,
-        errors, data, config, userPeriodT
+        errors, data, config, userPeriodT,
+        detectedParams, updateParam
     } = useHelixState();
 
     const { theme: planeTheme, updatePlane, recents, addRecent, resetTheme } = usePlaneTheme();
     const playbackRt = usePlaybackRuntime();
     const { bound, center } = useAutoBound(data);
 
+    // Zustand store
+    const theme = useAppStore(s => s.theme);
+    const toggleTheme = useAppStore(s => s.toggleTheme);
+    const viewMode = useAppStore(s => s.viewMode);
+    const toggleViewMode = useAppStore(s => s.toggleViewMode);
+    const preset = useAppStore(s => s.preset);
+    const setPreset = useAppStore(s => s.setPreset);
+    const showSettings = useAppStore(s => s.showSettings);
+    const setShowSettings = useAppStore(s => s.setShowSettings);
+    const eqOpen = useAppStore(s => s.eqModalOpen);
+    const setEqOpen = useAppStore(s => s.setEqModalOpen);
+    const incrementPresetChange = useAppStore(s => s.incrementPresetChange);
+
+    // Export modal
+    const [exportOpen, setExportOpen] = useState(false);
+
+    // History - auto-save on expression change
+    const addToHistory = useHistoryStore(s => s.addToHistory);
+
     // Global keyboard inset
     useKeyboardInset();
 
+    // Ad system
+    useInterstitialAd();
+    useEffect(() => { AdService.initialize(); }, []);
+
     const editorRef = useRef<HTMLTextAreaElement>(null);
 
-    const [theme, setTheme] = useState<"diagram" | "modern">("diagram");
-    const [viewMode, setViewMode] = useState<"diagram" | "quad">("diagram");
-    const [preset, setPreset] = useState(DEFAULT_PRESET_ID);
-    const [showSettings, setShowSettings] = useState(false);
-
-    // ✅ B안: App 루트에서만 모달 상태 관리
-    const [eqOpen, setEqOpen] = useState(false);
-
-    // userPeriodT -> runtime loopT 동기화(PlaybackBar props 아님!)
+    // userPeriodT -> runtime loopT sync
     useEffect(() => {
         const val = parseFloat(userPeriodT);
         playbackRt.setLoopT(isNaN(val) ? 0 : val);
     }, [userPeriodT, playbackRt]);
 
-    // 초기 프리셋/라텍스 셋
+    // Load shared URL or default preset on mount
     useEffect(() => {
+        const shared = parseShareURL();
+        if (shared?.code) {
+            setInput(shared.code);
+            if (shared.latex) setLatexInputRaw(shared.latex);
+            // Clean URL params after loading
+            window.history.replaceState({}, '', window.location.pathname);
+            return;
+        }
+
         const defaultFn = CORE_PRESETS.find(p => p.id === DEFAULT_PRESET_ID);
         if (defaultFn && (!input || input.includes("Lissajous"))) {
             if (defaultFn.latex) setLatexInputRaw(defaultFn.latex);
@@ -58,7 +95,11 @@ export default function App() {
     }, []);
 
     const handlePresetChange = (newId: string) => {
+        // Save current expression to history before switching
+        if (input.trim()) addToHistory(input, latexInput);
+
         setPreset(newId);
+        incrementPresetChange();
         const p = CORE_PRESETS.find(x => x.id === newId);
         if (!p) return;
 
@@ -66,6 +107,7 @@ export default function App() {
         setLatexInputRaw(p.latex ?? "");
     };
 
+    // Theme class sync
     useEffect(() => {
         document.documentElement.classList.remove("theme-diagram", "theme-modern");
         document.documentElement.classList.add(theme === "diagram" ? "theme-diagram" : "theme-modern");
@@ -90,9 +132,12 @@ export default function App() {
             latex={latexInput}
             compiledExpr={lastGoodExpr}
             exprError={exprError}
-            // ✅ Editor/EquationEditor가 이 prop을 받도록 아래 2)도 같이 적용
             onOpenEquationEditor={() => setEqOpen(true)}
         />
+    );
+
+    const paramSliderNode = (
+        <ParameterSlider params={detectedParams} onUpdate={updateParam} />
     );
 
     const inputPanelNode = (
@@ -100,6 +145,7 @@ export default function App() {
             editor={editorNode}
             errors={errors}
             onRender={() => { /* already auto-rendering */ }}
+            paramSlider={paramSliderNode}
         />
     );
 
@@ -112,16 +158,19 @@ export default function App() {
 
     return (
         <>
+            {!splashDone && <SplashScreen onComplete={() => setSplashDone(true)} />}
+
             <AppShell
                 topbar={
                     <TopBar
                         preset={preset}
                         onPreset={handlePresetChange}
                         theme={theme}
-                        onToggleTheme={() => setTheme(theme === "diagram" ? "modern" : "diagram")}
+                        onToggleTheme={toggleTheme}
                         viewMode={viewMode}
-                        onToggleViewMode={() => setViewMode(viewMode === "diagram" ? "quad" : "diagram")}
+                        onToggleViewMode={toggleViewMode}
                         onSettings={() => setShowSettings(true)}
+                        onExport={() => setExportOpen(true)}
                     />
                 }
                 canvas={
@@ -159,18 +208,27 @@ export default function App() {
                     </div>
                 }
                 panel={inputPanelNode}
-                bottomBar={playbackNode}
+                bottomBar={<>{playbackNode}<AdBanner size="leaderboard" className="hidden sm:flex mt-2" /></>}
             />
 
             <MobileSheet input={inputPanelNode} playback={playbackNode} />
 
-            {/* ✅ App 루트 단일 모달 */}
             <EquationEditorModal
                 open={eqOpen}
                 initialLatex={latexInput}
                 onClose={() => setEqOpen(false)}
                 onApply={(latex) => updateFromLatex(latex)}
             />
+
+            <ExportModal
+                open={exportOpen}
+                onClose={() => setExportOpen(false)}
+                code={input}
+                latex={latexInput}
+            />
+
+            <ToastContainer />
+            <Onboarding />
 
             {showSettings && (
                 <SettingsModal

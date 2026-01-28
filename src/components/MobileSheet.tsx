@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 export function MobileSheet({
     input,
@@ -7,6 +8,7 @@ export function MobileSheet({
     input: React.ReactNode;
     playback: React.ReactNode;
 }) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(true);
     const [tab, setTab] = useState<"playback" | "input">("playback");
     const sheetRef = useRef<HTMLDivElement>(null);
@@ -65,14 +67,14 @@ export function MobileSheet({
                         className={`flex-1 h-9 rounded-2xl border border-[var(--border)] text-sm ${tab === "playback" ? "bg-[var(--accent)] text-white" : "bg-transparent"
                             }`}
                     >
-                        Playback
+                        {t('mobile.playback')}
                     </button>
                     <button
                         onClick={() => setTab("input")}
                         className={`flex-1 h-9 rounded-2xl border border-[var(--border)] text-sm ${tab === "input" ? "bg-[var(--accent)] text-white" : "bg-transparent"
                             }`}
                     >
-                        Input
+                        {t('mobile.input')}
                     </button>
                 </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Wheel } from '@uiw/react-color';
 import type { PlaneTheme, PlaneColor } from '../hooks/usePlaneTheme';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,7 @@ function AlphaSlider({ alpha, onChange }: { alpha: number, onChange: (v: number)
                 step="0.01"
                 value={alpha}
                 onChange={e => onChange(parseFloat(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-[var(--accent)]"
+                className="flex-1 h-2 bg-[var(--bg-button)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
             />
             <span className="text-xs w-9 text-right font-mono">{(alpha * 100).toFixed(0)}%</span>
         </div>
@@ -73,11 +73,11 @@ function PlaneSetting({
                 {/* Controls */}
                 <div className="flex flex-col flex-1 gap-3 min-w-0 max-w-[120px]">
                     <div>
-                        <div className="text-[10px] text-[var(--muted)] uppercase font-semibold mb-1">Color</div>
+                        <div className="text-[10px] text-[var(--muted)] uppercase font-semibold mb-1">{t('settings.color')}</div>
                         <ColorInput hex={color.hex} onChange={(h) => onChange({ hex: h })} />
                     </div>
                     <div>
-                        <div className="text-[10px] text-[var(--muted)] uppercase font-semibold mb-1">Opacity</div>
+                        <div className="text-[10px] text-[var(--muted)] uppercase font-semibold mb-1">{t('settings.opacity')}</div>
                         <AlphaSlider alpha={color.alpha} onChange={(a) => onChange({ alpha: a })} />
                     </div>
                 </div>
@@ -99,8 +99,8 @@ function PlaneSetting({
                         ))}
                         <button
                             onClick={() => onAddRecent(color.hex)}
-                            className="w-6 h-6 rounded-full border border-[var(--border)] bg-gray-100 dark:bg-gray-800 grid place-items-center text-[10px] hover:bg-gray-200 dark:hover:bg-white/10"
-                            title="Save Current"
+                            className="w-6 h-6 rounded-full border border-[var(--border)] bg-[var(--bg-button)] grid place-items-center text-[10px] hover:opacity-80"
+                            title={t('settings.save_current')}
                         >
                             +
                         </button>
@@ -146,8 +146,8 @@ function LanguageSelect({ value, onChange }: { value: string, onChange: (v: stri
             </SelectTrigger>
             {open && (
                 <div className="absolute top-full left-0 w-full mt-1 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-lg z-50 overflow-hidden py-1">
-                    <button onClick={() => { onChange('en'); setOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5">English (United States)</button>
-                    <button onClick={() => { onChange('ko'); setOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5">한국어 (대한민국)</button>
+                    <button onClick={() => { onChange('en'); setOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-button)]">English (United States)</button>
+                    <button onClick={() => { onChange('ko'); setOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-button)]">한국어 (대한민국)</button>
                 </div>
             )}
         </div>
@@ -170,13 +170,37 @@ export function SettingsModal({
     onReset?: () => void
 }) {
     const { t, i18n } = useTranslation();
+    const dialogRef = useRef<HTMLDivElement>(null);
+
+    // Focus trap & Escape key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { onClose(); return; }
+            if (e.key !== 'Tab' || !dialogRef.current) return;
+            const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            if (focusable.length === 0) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault(); last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault(); first.focus();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        // Auto-focus first element
+        const timer = setTimeout(() => dialogRef.current?.querySelector<HTMLElement>('button')?.focus(), 50);
+        return () => { document.removeEventListener('keydown', handleKeyDown); clearTimeout(timer); };
+    }, [onClose]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
-            <div className="w-full max-w-sm sm:max-w-2xl bg-[var(--card)] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('app.settings')} className="w-full max-w-sm sm:max-w-2xl bg-[var(--card)] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--bg)]">
                     <h2 className="font-bold text-lg">{t('app.settings')}</h2>
-                    <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 grid place-items-center">✕</button>
+                    <button onClick={onClose} aria-label={t('app.cancel')} className="w-8 h-8 rounded-full hover:bg-[var(--bg-button)] grid place-items-center focus-visible:ring-2 focus-visible:ring-[var(--accent)]">✕</button>
                 </div>
 
                 <div className="p-4 overflow-y-auto min-h-0 flex-1 flex flex-col gap-6">
@@ -195,21 +219,21 @@ export function SettingsModal({
                         <div className="text-sm font-bold mb-3 text-[var(--muted)] uppercase">{t('settings.appearance')}</div>
                         <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <PlaneSetting
-                                label="XY Plane (Floor)"
+                                label={t('settings.xy_plane')}
                                 color={theme.xy}
                                 onChange={(c) => updatePlane('xy', c)}
                                 recents={recents}
                                 onAddRecent={addRecent}
                             />
                             <PlaneSetting
-                                label="XZ Plane (Side)"
+                                label={t('settings.xz_plane')}
                                 color={theme.xz}
                                 onChange={(c) => updatePlane('xz', c)}
                                 recents={recents}
                                 onAddRecent={addRecent}
                             />
                             <PlaneSetting
-                                label="YZ Plane (Front)"
+                                label={t('settings.yz_plane')}
                                 color={theme.yz}
                                 onChange={(c) => updatePlane('yz', c)}
                                 recents={recents}
