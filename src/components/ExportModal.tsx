@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef } from 'react';
 import { Download, Link, Copy, X } from 'lucide-react';
-import { captureCanvasPNG, downloadDataURL, buildShareURL, copyToClipboard } from '../utils/export';
+import { captureCanvasPNG, savePNG, shareLink, copyToClipboard } from '../utils/export';
 import { useToast } from './Toast';
 
 interface ExportModalProps {
@@ -27,19 +27,22 @@ export function ExportModal({ open, onClose, code, latex }: ExportModalProps) {
 
     if (!open) return null;
 
-    const handleDownloadPNG = () => {
+    const handleDownloadPNG = async () => {
         const dataURL = captureCanvasPNG();
         if (dataURL) {
-            downloadDataURL(dataURL, `helixplot-${Date.now()}.png`);
-            toast.success(t('export.png_saved'));
+            const success = await savePNG(dataURL, `helixplot-${Date.now()}.png`);
+            if (success) {
+                toast.success(t('export.png_saved'));
+            } else {
+                toast.error(t('export.copy_failed'));
+            }
         } else {
             toast.error(t('export.no_canvas'));
         }
     };
 
     const handleCopyLink = async () => {
-        const url = buildShareURL(code, latex);
-        const success = await copyToClipboard(url);
+        const success = await shareLink(code, latex);
         if (success) {
             toast.success(t('export.link_copied'));
         } else {
