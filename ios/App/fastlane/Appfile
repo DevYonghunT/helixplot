@@ -1,0 +1,11 @@
+# App Store Connect 계정 정보
+# 아래 값들을 실제 값으로 변경하세요
+
+app_identifier("com.yonghun.helixplot") # Bundle Identifier
+apple_id("YOUR_APPLE_ID@email.com") # Apple ID 이메일
+itc_team_id("YOUR_ITC_TEAM_ID") # App Store Connect Team ID
+team_id("YOUR_TEAM_ID") # Developer Portal Team ID
+
+# 환경변수에서 값을 가져올 수도 있습니다:
+# app_identifier(ENV["APP_IDENTIFIER"])
+# apple_id(ENV["APPLE_ID"])

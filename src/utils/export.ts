@@ -8,9 +8,41 @@
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import type { WebGLRenderer, Scene, Camera } from 'three';
+
+/** Global reference to the main Three.js renderer for capturing */
+let captureRenderer: WebGLRenderer | null = null;
+let captureScene: Scene | null = null;
+let captureCamera: Camera | null = null;
+
+/** Register the Three.js renderer for capture functionality */
+export function registerCaptureRenderer(
+    renderer: WebGLRenderer,
+    scene: Scene,
+    camera: Camera
+): void {
+    captureRenderer = renderer;
+    captureScene = scene;
+    captureCamera = camera;
+}
+
+/** Unregister the renderer (call on cleanup) */
+export function unregisterCaptureRenderer(): void {
+    captureRenderer = null;
+    captureScene = null;
+    captureCamera = null;
+}
 
 /** Capture the active Three.js canvas as a PNG data-URL */
 export function captureCanvasPNG(): string | null {
+    // If we have a registered renderer, force a render before capture
+    if (captureRenderer && captureScene && captureCamera) {
+        // Force render the current view
+        captureRenderer.render(captureScene, captureCamera);
+        return captureRenderer.domElement.toDataURL('image/png');
+    }
+
+    // Fallback: find the first canvas element
     const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
     if (!canvas) return null;
     return canvas.toDataURL('image/png');

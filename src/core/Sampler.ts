@@ -15,7 +15,10 @@ export class Sampler {
                 // Constant assignment like a=1
                 try {
                     constantScope[def.target] = evaluator.evaluate(def.expr);
-                } catch (e) { }
+                } catch {
+                    // Silent: Invalid constant expressions are skipped
+                    // (e.g., referencing undefined variables)
+                }
             }
         });
         evaluator.updateScope(constantScope);
@@ -77,10 +80,12 @@ export class Sampler {
             // Default Mapping: t, Re, Im
             const fFn = evaluator.compile(defs['f'].expr);
             getPoint = (t: number) => {
-                const val = fFn({ t }); // Complex
-                // mathjs complex object has re, im
-                const re = val.re !== undefined ? val.re : val;
-                const im = val.im !== undefined ? val.im : 0;
+                const val = fFn({ t }); // Complex or number
+                // mathjs complex object has re, im properties
+                // Cast to access these properties safely
+                const complexVal = val as { re?: number; im?: number };
+                const re = complexVal.re !== undefined ? complexVal.re : Number(val);
+                const im = complexVal.im !== undefined ? complexVal.im : 0;
 
                 // Mapping A: t, re, im
                 return { x: t, y: re, z: im };
@@ -102,7 +107,8 @@ export class Sampler {
                     points.push(lastValid ? { ...lastValid } : { x: NaN, y: NaN, z: NaN });
                     validity.push(false);
                 }
-            } catch (e) {
+            } catch {
+                // Math error at this t value - use fallback to avoid gaps
                 points.push(lastValid ? { ...lastValid } : { x: NaN, y: NaN, z: NaN });
                 validity.push(false);
             }
@@ -146,7 +152,8 @@ export class Sampler {
                     const p = { x, y, z };
                     row.push(p);
                     points.push(p); // Flattened
-                } catch (e) {
+                } catch {
+                    // Math error at this (x,y) - use NaN to indicate invalid point
                     row.push({ x, y, z: NaN });
                     points.push({ x, y, z: NaN });
                 }

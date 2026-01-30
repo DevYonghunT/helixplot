@@ -135,8 +135,10 @@ export const CurveRenderer: React.FC<RendererProps> = ({ data, color, opacity = 
         };
     }, []);
 
-    // Reset material refs array length
-    materialRefs.current.length = tubes.length;
+    // Reset material refs array length in useEffect to avoid mutation during render
+    useEffect(() => {
+        materialRefs.current.length = tubes.length;
+    }, [tubes.length]);
 
     return (
         <group>

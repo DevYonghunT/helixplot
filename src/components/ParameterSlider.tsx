@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -46,9 +46,9 @@ function SingleSlider({ name, value, onUpdate }: { name: string; value: number; 
     }, []);
 
     // Sync from external value changes (e.g., code editing)
-    if (Math.abs(value - localValue) > 1e-10 && value !== localValue) {
+    useEffect(() => {
         setLocalValue(value);
-    }
+    }, [value]);
 
     // Dynamic step: finer for smaller ranges
     const dynamicStep = (customMax - customMin) / 1000;

@@ -1,7 +1,7 @@
 {
   "name": "helixplot",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ios:sync": "npm run build && npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "ios:build": "./scripts/deploy-ios.sh build",
+    "ios:beta": "./scripts/deploy-ios.sh beta",
+    "ios:release": "./scripts/deploy-ios.sh release"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",

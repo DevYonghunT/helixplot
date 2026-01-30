@@ -7,8 +7,28 @@ import type { SampleResult, Mode, RenderConfig } from '../core/types';
 import type { PlaneTheme } from '../hooks/usePlaneTheme';
 import { CurveRenderer, SurfaceRenderer } from './Renderers';
 import { CanvasErrorBoundary } from './ErrorBoundary';
+import { registerCaptureRenderer, unregisterCaptureRenderer } from '../utils/export';
 
 import type { PlaybackRuntime } from '../hooks/usePlaybackRuntime';
+
+/** Helper component to register Three.js renderer for screenshot capture */
+const CaptureHelper: React.FC<{ isMain?: boolean }> = ({ isMain = false }) => {
+    const { gl, scene, camera } = useThree();
+
+    useEffect(() => {
+        // Only register the main 3D viewport for capture
+        if (isMain) {
+            registerCaptureRenderer(gl, scene, camera);
+        }
+        return () => {
+            if (isMain) {
+                unregisterCaptureRenderer();
+            }
+        };
+    }, [gl, scene, camera, isMain]);
+
+    return null;
+};
 
 interface ViewportProps {
     data: SampleResult;
@@ -148,6 +168,10 @@ const SceneContent = ({
     const lineYRef = useRef<THREE.LineSegments>(null);
     const lineXRef = useRef<THREE.LineSegments>(null);
 
+    // Reusable Vector3 instances to avoid GC pressure in useFrame
+    const tempVec1 = useRef(new THREE.Vector3());
+    const tempVec2 = useRef(new THREE.Vector3());
+
     // Symmetric Box Logic
     const { stagedData, finalExtent, center, planes, anchor } = React.useMemo(() => {
         // Default returns for empty data
@@ -256,12 +280,16 @@ const SceneContent = ({
             }
 
             if (showDiagramElements && fitReady && is3D) {
+                // Reuse temp vectors to avoid GC pressure
+                const v1 = tempVec1.current;
+                const v2 = tempVec2.current;
+
                 // Z Projection (XY)
                 if (projZRef.current) projZRef.current.position.set(px, py, az);
                 if (lineZRef.current) {
                     lineZRef.current.geometry.setFromPoints([
-                        new THREE.Vector3(px, py, pz),
-                        new THREE.Vector3(px, py, az)
+                        v1.set(px, py, pz),
+                        v2.set(px, py, az)
                     ]);
                     lineZRef.current.computeLineDistances();
                     lineZRef.current.visible = true;
@@ -271,8 +299,8 @@ const SceneContent = ({
                 if (projYRef.current) projYRef.current.position.set(px, ay, pz);
                 if (lineYRef.current) {
                     lineYRef.current.geometry.setFromPoints([
-                        new THREE.Vector3(px, py, pz),
-                        new THREE.Vector3(px, ay, pz)
+                        v1.set(px, py, pz),
+                        v2.set(px, ay, pz)
                     ]);
                     lineYRef.current.computeLineDistances();
                     lineYRef.current.visible = true;
@@ -282,8 +310,8 @@ const SceneContent = ({
                 if (projXRef.current) projXRef.current.position.set(ax, py, pz);
                 if (lineXRef.current) {
                     lineXRef.current.geometry.setFromPoints([
-                        new THREE.Vector3(px, py, pz),
-                        new THREE.Vector3(ax, py, pz)
+                        v1.set(px, py, pz),
+                        v2.set(ax, py, pz)
                     ]);
                     lineXRef.current.computeLineDistances();
                     lineXRef.current.visible = true;
@@ -311,10 +339,20 @@ const SceneContent = ({
                 camera.updateProjectionMatrix();
             } else if (!is3D && camera instanceof THREE.OrthographicCamera) {
                 camera.zoom = 500 / (finalExtent * 0.7);
-                // Position depends on type (x/y/z)
-                if (type === 'z') camera.position.set(0, 0, finalExtent); // Look at XY
-                else if (type === 'y') camera.position.set(0, finalExtent, 0); // Look at XZ
-                else if (type === 'x') camera.position.set(finalExtent, 0, 0); // Look at YZ
+                // Position and up vector depends on type (x/y/z)
+                if (type === 'z') {
+                    // Z plane (XY): Look from +Z axis
+                    camera.position.set(0, 0, finalExtent);
+                    camera.up.set(0, 1, 0);
+                } else if (type === 'y') {
+                    // Y plane (XZ): Look from +Y axis (top-down view)
+                    camera.position.set(0, finalExtent, 0);
+                    camera.up.set(0, 0, -1); // Up points to -Z so X goes right, Z goes up
+                } else if (type === 'x') {
+                    // X plane (YZ): Look from +X axis
+                    camera.position.set(finalExtent, 0, 0);
+                    camera.up.set(0, 1, 0);
+                }
 
                 camera.lookAt(0, 0, 0);
                 camera.updateProjectionMatrix();
@@ -347,10 +385,24 @@ const SceneContent = ({
 
     return (
         <>
+            {/* Register renderer for screenshot capture (only main 3D view) */}
+            <CaptureHelper isMain={is3D} />
+
             {is3D ? (
                 <PerspectiveCamera makeDefault fov={45} />
             ) : (
-                <OrthographicCamera makeDefault position={[0, 0, 10]} zoom={20} />
+                <OrthographicCamera
+                    makeDefault
+                    position={
+                        type === 'z' ? [0, 0, 10] :
+                        type === 'y' ? [0, 10, 0] :
+                        [10, 0, 0]
+                    }
+                    up={
+                        type === 'y' ? [0, 0, -1] : [0, 1, 0]
+                    }
+                    zoom={20}
+                />
             )}
 
             <OrbitControls
@@ -517,6 +569,7 @@ export const Viewport: React.FC<ViewportProps> = (props) => {
                     key={`plane-${props.type}`}
                     style={{ touchAction: 'none' }}
                     frameloop={props.playbackRt?.isPlaying ? 'always' : 'demand'}
+                    gl={{ preserveDrawingBuffer: true }}
                 >
                     <SceneContent {...props} themes={themes} />
                     <ResetViewOnDoubleClick />

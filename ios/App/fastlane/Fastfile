@@ -1,0 +1,110 @@
+# Fastfile for HelixPlot iOS App
+
+default_platform(:ios)
+
+platform :ios do
+  # 빌드 전 설정
+  before_all do
+    setup_ci if ENV['CI']
+  end
+
+  # 테스트 실행
+  desc "테스트 실행"
+  lane :test do
+    run_tests(
+      workspace: "App.xcworkspace",
+      scheme: "App",
+      device: "iPhone 16 Pro"
+    )
+  end
+
+  # 개발용 빌드 (로컬 테스트)
+  desc "개발용 빌드"
+  lane :build_dev do
+    build_app(
+      workspace: "App.xcworkspace",
+      scheme: "App",
+      configuration: "Debug",
+      export_method: "development"
+    )
+  end
+
+  # TestFlight 베타 배포
+  desc "TestFlight에 베타 버전 업로드"
+  lane :beta do
+    # 버전 번호 증가
+    increment_build_number(
+      xcodeproj: "App.xcodeproj"
+    )
+
+    # 앱 빌드
+    build_app(
+      workspace: "App.xcworkspace",
+      scheme: "App",
+      configuration: "Release",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          "com.yonghun.helixplot" => "match AppStore com.yonghun.helixplot"
+        }
+      }
+    )
+
+    # TestFlight에 업로드
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  # App Store 릴리스
+  desc "App Store에 릴리스"
+  lane :release do
+    # 버전 번호 확인 및 증가
+    increment_build_number(
+      xcodeproj: "App.xcodeproj"
+    )
+
+    # 앱 빌드
+    build_app(
+      workspace: "App.xcworkspace",
+      scheme: "App",
+      configuration: "Release",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          "com.yonghun.helixplot" => "match AppStore com.yonghun.helixplot"
+        }
+      }
+    )
+
+    # App Store Connect에 업로드
+    upload_to_app_store(
+      skip_metadata: false,
+      skip_screenshots: true,
+      submit_for_review: false,
+      automatic_release: false,
+      precheck_include_in_app_purchases: false
+    )
+  end
+
+  # 스크린샷 생성
+  desc "앱 스크린샷 생성"
+  lane :screenshots do
+    capture_screenshots(
+      workspace: "App.xcworkspace",
+      scheme: "App"
+    )
+  end
+
+  # 인증서 및 프로비저닝 프로파일 관리
+  desc "인증서 및 프로파일 동기화"
+  lane :certs do
+    match(type: "appstore")
+  end
+
+  # 에러 처리
+  error do |lane, exception|
+    # 에러 발생 시 Slack 알림 등 추가 가능
+    puts "에러 발생: #{exception.message}"
+  end
+end
